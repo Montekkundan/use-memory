@@ -2,9 +2,11 @@ import { defineChannel, POST } from "eve/channels";
 import { agent } from "../../shared/agent.js";
 import {
   createRequestId,
+  errorCode,
   errorKind,
   logEvent,
   opaqueReference,
+  safeErrorMessage,
 } from "../../shared/observability.js";
 import { isPhotonCloudConfigured, photonAdapter } from "../lib/photon.js";
 
@@ -55,8 +57,19 @@ export default defineChannel<PhotonAuthState>({
         );
         return json(200, { delivered: true });
       }
-      catch {
-        console.error("[photon-auth] OTP delivery failed");
+      catch (error) {
+        logEvent("error", "photon.phone_otp.failed", {
+          requestId: createRequestId(request.headers.get("x-request-id")),
+          phoneRef: opaqueReference(phoneNumber),
+          errorKind: errorKind(error),
+          errorCode: errorCode(error),
+          errorMessage: safeErrorMessage(error, [
+            phoneNumber,
+            code,
+            process.env.SPECTRUM_PROJECT_SECRET ?? "",
+            process.env.IMESSAGE_PROJECT_SECRET ?? "",
+          ]),
+        });
         return json(502, { delivered: false, error: "Delivery failed" });
       }
     }),
@@ -97,8 +110,18 @@ export default defineChannel<PhotonAuthState>({
         );
         return json(200, { delivered: true });
       }
-      catch {
-        console.error("[photon-auth] connection confirmation failed");
+      catch (error) {
+        logEvent("error", "photon.connection_confirmation.failed", {
+          phoneRef: opaqueReference(phoneNumber),
+          connector,
+          errorKind: errorKind(error),
+          errorCode: errorCode(error),
+          errorMessage: safeErrorMessage(error, [
+            phoneNumber,
+            process.env.SPECTRUM_PROJECT_SECRET ?? "",
+            process.env.IMESSAGE_PROJECT_SECRET ?? "",
+          ]),
+        });
         return json(502, { delivered: false, error: "Delivery failed" });
       }
     }),
@@ -155,6 +178,12 @@ export default defineChannel<PhotonAuthState>({
           ...fields,
           durationMs: Date.now() - startedAt,
           errorKind: errorKind(error),
+          errorCode: errorCode(error),
+          errorMessage: safeErrorMessage(error, [
+            phoneNumber,
+            process.env.SPECTRUM_PROJECT_SECRET ?? "",
+            process.env.IMESSAGE_PROJECT_SECRET ?? "",
+          ]),
         });
         return json(502, { accepted: false, error: "Invitation failed" });
       }
