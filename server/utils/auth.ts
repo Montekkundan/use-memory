@@ -42,7 +42,9 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
-    transaction: true,
+    // Neon HTTP has no interactive transactions. The PostgreSQL adapter still
+    // consumes one-time verification rows atomically with DELETE ... RETURNING.
+    transaction: false,
   }),
   emailAndPassword: {
     enabled: false,
