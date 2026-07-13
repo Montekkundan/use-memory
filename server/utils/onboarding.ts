@@ -142,9 +142,32 @@ async function updateRow(phoneNumber: string, patch: Partial<typeof imessageOnbo
   return row;
 }
 
+async function ensureConsentedUserResources(appUserId: string) {
+  await db.insert(schema.userProfiles)
+    .values({ userId: appUserId })
+    .onConflictDoNothing();
+  await db.insert(schema.mem0UserSettings)
+    .values({
+      userId: appUserId,
+      automaticMemoryEnabled: true,
+      consentedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.mem0UserSettings.userId,
+      set: {
+        automaticMemoryEnabled: true,
+        consentedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+}
+
 async function provisionPhoneUser(phoneNumber: string) {
   const linked = await getPhoneLinkByPhoneNumber(phoneNumber);
-  if (linked) return linked.appUserId;
+  if (linked) {
+    await ensureConsentedUserResources(linked.appUserId);
+    return linked.appUserId;
+  }
 
   const emailHash = createHash("sha256").update(phoneNumber).digest("hex").slice(0, 32);
   const email = `imessage-${emailHash}@users.use-memory.local`;
@@ -175,23 +198,7 @@ async function provisionPhoneUser(phoneNumber: string) {
       .where(eq(schema.user.id, appUserId));
   }
 
-  await db.insert(schema.userProfiles)
-    .values({ userId: appUserId })
-    .onConflictDoNothing();
-  await db.insert(schema.mem0UserSettings)
-    .values({
-      userId: appUserId,
-      automaticMemoryEnabled: true,
-      consentedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: schema.mem0UserSettings.userId,
-      set: {
-        automaticMemoryEnabled: true,
-        consentedAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+  await ensureConsentedUserResources(appUserId);
   return appUserId;
 }
 
@@ -259,7 +266,22 @@ export async function handleOnboardingGateway(
   if (!row) {
     const linked = await getPhoneLinkByPhoneNumber(input.phoneNumber);
     if (linked) {
-      return { appUserId: linked.appUserId, kind: "ready", snapshot: null };
+      await db.insert(imessageOnboardingSessions).values({
+        appUserId: linked.appUserId,
+        phoneNumber: input.phoneNumber,
+        threadId: input.threadId,
+        step: "consent",
+        otpVerifiedAt: new Date(),
+      });
+      row = (await getRow(input.phoneNumber))!;
+      const prompt = promptFor(row);
+      const response: OnboardingGatewayResponse = {
+        kind: "prompt",
+        message: `This phone is already verified.\n\n${prompt.message}`,
+        nativeChoice: prompt.nativeChoice,
+        snapshot: rowToSnapshot(row),
+      };
+      return (await persistResponse(input, response)).response;
     }
 
     if (!await isPhoneInvited(input.phoneNumber)) {
