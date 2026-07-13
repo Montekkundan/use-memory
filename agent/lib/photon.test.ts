@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createPhotonChannelRegistration,
   DisabledPhotonAdapter,
   hasPhotonCloudCredentials,
   hasPhotonWebhookCredentials,
@@ -50,6 +51,16 @@ describe("Photon configuration", () => {
 });
 
 describe("DisabledPhotonAdapter", () => {
+  it("registers the adapter under the name Chat SDK persists for resumed replies", () => {
+    const adapter = new DisabledPhotonAdapter();
+    const registration = createPhotonChannelRegistration(adapter);
+
+    expect(adapter.name).toBe("imessage");
+    expect(Object.keys(registration.adapters)).toEqual([adapter.name]);
+    expect(registration.adapters[adapter.name]).toBe(adapter);
+    expect(registration.routes[adapter.name]).toBe("/eve/v1/photon");
+  });
+
   it("does not initialize a remote Photon client", async () => {
     const adapter = new DisabledPhotonAdapter();
 

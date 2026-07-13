@@ -13,7 +13,11 @@ import type {
   OnboardingNativeChoice,
 } from "../../shared/types/onboarding.js";
 import { runOnboardingGateway } from "../lib/onboarding-internal.js";
-import { photonAdapter, photonState } from "../lib/photon.js";
+import {
+  createPhotonChannelRegistration,
+  photonAdapter,
+  photonState,
+} from "../lib/photon.js";
 
 const IMESSAGE_CONTEXT = [
   "Channel: iMessage via Photon Cloud. There is no browser UI in this thread.",
@@ -23,8 +27,7 @@ const IMESSAGE_CONTEXT = [
 
 const bridge = chatSdkChannel({
   userName: agent.name,
-  adapters: { photon: photonAdapter },
-  routes: { photon: "/eve/v1/photon" },
+  ...createPhotonChannelRegistration(photonAdapter),
   state: photonState,
 });
 

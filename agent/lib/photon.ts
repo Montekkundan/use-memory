@@ -21,6 +21,15 @@ export interface PhotonConfiguration {
   webhookSecret?: string;
 }
 
+export function createPhotonChannelRegistration<
+  TAdapter extends { readonly name: string },
+>(adapter: TAdapter) {
+  return {
+    adapters: { [adapter.name]: adapter },
+    routes: { [adapter.name]: "/eve/v1/photon" },
+  };
+}
+
 function optionalValue(value: string | undefined) {
   return value?.trim() || undefined;
 }
