@@ -6,7 +6,7 @@ const confirmationSent = ref(false);
 watch([connectors, pending], async () => {
   if (confirmationSent.value || pending.value) return;
   const connected = typeof route.query.connected === "string" ? route.query.connected : "";
-  if (!['github', 'linear'].includes(connected)) return;
+  if (connected !== 'github') return;
   const connector = connectors.value?.find(item => item.id === connected);
   if (connector?.status.state !== "connected") return;
 
@@ -22,9 +22,9 @@ const totalCount = computed(() => connectors.value?.length ?? 0);
 
 const servicesDescription = computed(() => {
   if (isInitialLoad.value || error.value) {
-    return "OAuth tools available in chat, Slack, and iMessage once linked.";
+    return "GitHub tools are available in web chat and iMessage once linked.";
   }
-  return `${connectedCount.value} of ${totalCount.value} connected · OAuth tools available in chat, Slack, and iMessage once linked.`;
+  return `${connectedCount.value} of ${totalCount.value} connected · GitHub tools are available in web chat and iMessage once linked.`;
 });
 </script>
 
@@ -53,14 +53,7 @@ const servicesDescription = computed(() => {
 
         <div class="space-y-8">
           <SettingsSection
-            title="Channels"
-            description="Link messaging platforms to your Use Memory account."
-          >
-            <IntegrationsSlackLinkCard />
-          </SettingsSection>
-
-          <SettingsSection
-            title="Services"
+            title="GitHub"
             :description="servicesDescription"
           >
             <template #default>

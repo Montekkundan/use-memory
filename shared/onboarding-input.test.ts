@@ -18,8 +18,8 @@ describe("onboarding input", () => {
   });
 
   it("parses, deduplicates, and validates numbered multiselect", () => {
-    const options = ["github", "linear", "slack"];
-    expect(parseNumberedChoices("1, 3, 1", options, false)).toEqual(["github", "slack"]);
+    const options = ["github", "calendar", "notes"];
+    expect(parseNumberedChoices("1, 3, 1", options, false)).toEqual(["github", "notes"]);
     expect(parseNumberedChoices("4", options, false)).toBeNull();
     expect(parseNumberedChoices("research, music", options, true)).toEqual(["research", "music"]);
   });

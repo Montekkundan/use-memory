@@ -55,7 +55,7 @@ export async function sendPhoneSignInCode(phoneNumber: string, code: string) {
 
 export async function sendConnectionConfirmation(
   phoneNumber: string,
-  connector: "GitHub" | "Linear",
+  connector: "GitHub",
 ) {
   const origin = (
     process.env.EVE_INTERNAL_URL?.trim()

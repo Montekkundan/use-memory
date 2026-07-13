@@ -4,6 +4,7 @@ import {
   DisabledPhotonAdapter,
   hasPhotonCloudCredentials,
   hasPhotonWebhookCredentials,
+  parsePhotonOnboardingPollVote,
   resolvePhotonConfiguration,
 } from "./photon.js";
 
@@ -76,5 +77,55 @@ describe("DisabledPhotonAdapter", () => {
 
     expect(response.status).toBe(503);
     await expect(response.text()).resolves.toBe("Photon Cloud is not configured");
+  });
+});
+
+describe("parsePhotonOnboardingPollVote", () => {
+  it("turns a selected onboarding poll option into gateway input", () => {
+    expect(parsePhotonOnboardingPollVote({
+      content: {
+        type: "poll_option",
+        selected: true,
+        poll: { title: "Set up use-memory? abc123" },
+        option: { title: "Yes, continue" },
+      },
+    })).toBe("yes");
+
+    expect(parsePhotonOnboardingPollVote({
+      content: {
+        type: "poll_option",
+        selected: true,
+        poll: { title: "Set up use-memory? abc123" },
+        option: { title: "No, stop" },
+      },
+    })).toBe("no");
+  });
+
+  it("ignores deselection and unrelated polls", () => {
+    expect(parsePhotonOnboardingPollVote({
+      content: {
+        type: "poll_option",
+        selected: false,
+        poll: { title: "Set up use-memory? abc123" },
+        option: { title: "Yes, continue" },
+      },
+    })).toBeNull();
+
+    expect(parsePhotonOnboardingPollVote({
+      content: {
+        type: "poll_option",
+        selected: true,
+        poll: { title: "Lunch?" },
+        option: { title: "Yes, continue" },
+      },
+    })).toBeNull();
+  });
+
+  it("distinguishes ordinary messages from ignored poll events", () => {
+    expect(parsePhotonOnboardingPollVote({
+      content: { type: "text", text: "hello" },
+    })).toBeUndefined();
+
+    expect(parsePhotonOnboardingPollVote(undefined)).toBeUndefined();
   });
 });

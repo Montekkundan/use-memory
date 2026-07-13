@@ -48,7 +48,7 @@ export function useSiteSeo(options?: {
       { name: "author", content: site.author },
       {
         name: "keywords",
-        content: "Eve, Nuxt, personal agent, AI assistant, Better Auth, Slack, iMessage, Linear, memory",
+        content: "Eve, Nuxt, personal agent, AI assistant, Better Auth, iMessage, GitHub, memory",
       },
     ],
     script: [

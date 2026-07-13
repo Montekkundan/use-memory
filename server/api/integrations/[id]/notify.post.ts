@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
   await sendConnectionConfirmation(
     phone.phoneNumber,
-    connector.id === "github" ? "GitHub" : "Linear",
+    "GitHub",
   );
   return { notified: true };
 });

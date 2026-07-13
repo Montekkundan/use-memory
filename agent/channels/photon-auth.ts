@@ -98,7 +98,7 @@ export default defineChannel<PhotonAuthState>({
         ? String(body.connector).trim()
         : "";
 
-      if (!/^\+[1-9]\d{7,14}$/u.test(phoneNumber) || !["GitHub", "Linear"].includes(connector)) {
+      if (!/^\+[1-9]\d{7,14}$/u.test(phoneNumber) || connector !== "GitHub") {
         return json(400, { delivered: false, error: "Invalid confirmation payload" });
       }
 

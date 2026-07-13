@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
+import { profileLanguageSchema, profileTableFields } from "#shared/profile-schema";
 import type { UserProfile, UserProfilePatch, UserProfileWithUser } from "#shared/types/profile";
 import { getPhoneLinkForAppUser } from "~~/server/utils/phone-links";
 
@@ -7,7 +8,7 @@ function rowToProfile(row: typeof schema.userProfiles.$inferSelect): UserProfile
   return {
     userId: row.userId,
     timezone: row.timezone,
-    locale: row.locale,
+    locale: profileLanguageSchema.parse(row.locale),
     bio: row.bio,
     updatedAt: row.updatedAt.getTime(),
   };
@@ -78,13 +79,12 @@ export async function updateProfileForUser(userId: string, patch: UserProfilePat
       .where(eq(schema.user.id, userId));
   }
 
-  await db.update(schema.userProfiles)
-    .set({
-      ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
-      ...(patch.locale !== undefined ? { locale: patch.locale } : {}),
-      ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
-    })
-    .where(eq(schema.userProfiles.userId, userId));
+  const profileFields = profileTableFields(patch);
+  if (profileFields) {
+    await db.update(schema.userProfiles)
+      .set(profileFields)
+      .where(eq(schema.userProfiles.userId, userId));
+  }
 
   return getProfileWithUser(userId);
 }

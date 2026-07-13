@@ -33,7 +33,7 @@ const INTEREST_OPTIONS = [
   "finance",
 ] as const;
 
-const INTEGRATION_OPTIONS = ["github", "linear"] as const;
+const INTEGRATION_OPTIONS = ["github"] as const;
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_RESEND_INTERVAL_MS = 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -55,7 +55,7 @@ function rowToSnapshot(row: OnboardingRow): OnboardingSnapshot {
     appUserId: row.appUserId,
     completedAt: row.completedAt?.getTime() ?? null,
     consent: row.consent,
-    integrations: parseStringList(row.integrationsJson),
+    integrations: parseStringList(row.integrationsJson).filter(id => id === "github"),
     interests: parseStringList(row.interestsJson),
     name: row.name,
     phoneNumber: row.phoneNumber,
@@ -115,8 +115,8 @@ function promptFor(row: OnboardingRow): { message: string; nativeChoice?: Onboar
     case "integrations":
       return {
         message: [
-          "Which accounts do you want to connect? Reply with several numbers separated by commas.",
-          "1. GitHub\n2. Linear\n3. None for now",
+          "Do you want to connect GitHub?",
+          "1. GitHub\n2. None for now",
         ].join("\n\n"),
       };
     case "complete":
@@ -255,7 +255,7 @@ export async function getOnboardingSnapshot(phoneNumber: string) {
 export async function handleOnboardingGateway(
   rawInput: OnboardingGatewayRequest,
 ): Promise<OnboardingGatewayResponse> {
-  const input = {
+  let input = {
     ...rawInput,
     phoneNumber: normalizePhoneNumber(rawInput.phoneNumber),
     text: rawInput.text.trim(),
@@ -329,6 +329,21 @@ export async function handleOnboardingGateway(
       ?? (await getPhoneLinkByPhoneNumber(input.phoneNumber))?.appUserId;
     if (!appUserId) throw new Error("Completed onboarding session has no linked user");
     return { appUserId, kind: "ready", snapshot: rowToSnapshot(row) };
+  }
+
+  if (input.interaction?.kind === "consent") {
+    if (row.step !== "consent") {
+      const prompt = promptFor(row);
+      const response: OnboardingGatewayResponse = {
+        kind: "prompt",
+        message: `That choice is no longer active.\n\n${prompt.message}`,
+        nativeChoice: prompt.nativeChoice,
+        snapshot: rowToSnapshot(row),
+      };
+      return (await persistResponse(input, response)).response;
+    }
+
+    input = { ...input, text: input.interaction.value };
   }
 
   if (!input.text) {
@@ -550,13 +565,13 @@ export async function handleOnboardingGateway(
 
     case "integrations": {
       const normalized = input.text.trim().toLowerCase();
-      const integrations = normalized === "3" || normalized === "none"
+      const integrations = normalized === "2" || normalized === "none"
         ? []
         : parseNumberedChoices(input.text, INTEGRATION_OPTIONS, false);
       if (integrations === null) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: `Choose 1, 2, both as 1,2, or 3 for none.\n\n${promptFor(row).message}`,
+          message: `Choose 1 for GitHub or 2 for none.\n\n${promptFor(row).message}`,
           snapshot: rowToSnapshot(row),
         };
         return (await persistResponse(input, response)).response;
@@ -569,10 +584,9 @@ export async function handleOnboardingGateway(
       const selected = integrations.length ? integrations.join(", ") : "none yet";
       const appUserId = row.appUserId;
       const authorizationLinks = appUserId
-        ? await Promise.all(integrations.map(async (id) => {
-            const url = await createImessageBrowserLoginLink(appUserId, `/connect/${id}`);
-            const label = id === "github" ? "GitHub" : "Linear";
-            return `${label}: ${url}`;
+        ? await Promise.all(integrations.map(async () => {
+            const url = await createImessageBrowserLoginLink(appUserId, "/connect/github");
+            return `GitHub: ${url}`;
           }))
         : [];
       const response: OnboardingGatewayResponse = {
@@ -581,7 +595,7 @@ export async function handleOnboardingGateway(
           `You're all set. Selected integrations: ${selected}.`,
           authorizationLinks.length
             ? `Open each secure, five-minute link to authorize your own account:\n${authorizationLinks.join("\n")}`
-            : "You can connect GitHub and Linear later in Settings → Integrations.",
+            : "You can connect GitHub later in Settings → Integrations.",
           "Send your next message to start using use-memory.",
         ].join("\n\n"),
         snapshot: rowToSnapshot(row),

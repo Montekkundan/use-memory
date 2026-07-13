@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ProfileLanguage } from "#shared/profile-schema";
 import { authClient } from "~/lib/auth-client";
 
 const { profile, pending, saveProfile, timezones, locales } = useProfile();
@@ -7,7 +8,7 @@ const { memory, pending: memoryPending } = useMemory();
 const form = reactive({
   name: "",
   timezone: "UTC",
-  locale: "en",
+  locale: "en" as ProfileLanguage,
   bio: "",
 });
 
@@ -100,7 +101,7 @@ function resetForm() {
         >
           <SettingsSection
             title="Profile"
-            description="How Use Memory identifies you across web, Slack, and iMessage."
+            description="How Use Memory identifies you across web and iMessage."
           >
             <SettingsRow
               label="Name"

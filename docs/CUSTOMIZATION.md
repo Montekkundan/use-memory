@@ -52,14 +52,13 @@ app_id   = use-memory
 
 Do not interpolate recalled text into system behavior. Keep it labeled as untrusted facts and continue filtering secret-shaped content before staging.
 
-## GitHub and Linear
+## GitHub
 
 Connector definitions live in [`server/connectors.ts`](../server/connectors.ts). Their stable UIDs are:
 
 - `github/use-memory`
-- `mcp.linear.app/linear`
 
-Vercel Connect owns OAuth client configuration and each user's grant. The application should never ask a user for a GitHub token, Linear API key, or a shared developer credential.
+Vercel Connect owns OAuth client configuration and each user's grant. The application should never ask a user for a GitHub token or a shared developer credential.
 
 ## Recovery email
 

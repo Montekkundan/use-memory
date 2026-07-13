@@ -23,10 +23,6 @@ function onSubmit() {
   createChat(input.value);
 }
 
-function summarizeDay() {
-  void startChat("Summarize my day using the daily-summary skill.");
-}
-
 const quickChats = [
   {
     label: "Who are you?",
@@ -44,9 +40,9 @@ const quickChats = [
     action: () => createChat("What is the weather in Paris?"),
   },
   {
-    label: "Summarize my day",
-    icon: "i-lucide-calendar-days",
-    action: summarizeDay,
+    label: "Show my GitHub repositories",
+    icon: "i-simple-icons-github",
+    action: () => createChat("Show my GitHub repositories."),
   },
 ];
 </script>

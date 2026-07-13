@@ -8,7 +8,6 @@ import { z } from "zod";
 const TOKEN_TTL_MS = 5 * 60 * 1000;
 const ALLOWED_DESTINATIONS = new Set([
   "/connect/github",
-  "/connect/linear",
   "/settings/integrations",
   "/settings/profile",
 ]);

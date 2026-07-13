@@ -84,12 +84,15 @@ Add and verify a domain in Resend before using recovery email. The magic link is
 
 ## Vercel Connect
 
-GitHub and Linear do not require developer API keys in this application. Create and attach these connector UIDs:
+GitHub does not require a developer API key in this application. Create and attach this connector UID:
 
 - `github/use-memory`
-- `mcp.linear.app/linear`
 
 Each Better Auth user follows their own authorization link. Vercel Connect stores and refreshes that user's grant, while the application requests tokens using the same Better Auth user ID as the subject.
+
+## Vercel Sandbox
+
+Vercel deployments authenticate Sandbox automatically through project OIDC; no user Vercel token is stored. For local Sandbox testing, link the repository and run `vercel env pull` so `VERCEL_OIDC_TOKEN` is available. Sandbox usage belongs to the linked `use-memory` Vercel project.
 
 ## Local reset
 

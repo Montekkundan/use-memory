@@ -3,7 +3,7 @@ export default defineAppConfig({
     name: "use-memory",
     title: "use-memory",
     description:
-      "Your personal AI agent. Chat on the web, Slack, or iMessage — query Linear and pick up where you left off.",
+      "Your personal AI agent. Chat on the web or iMessage, connect GitHub, and pick up where you left off.",
     tagline: "Memory that follows the conversation",
     author: "Montekkundan",
     repo: "https://github.com/Montekkundan/use-memory",

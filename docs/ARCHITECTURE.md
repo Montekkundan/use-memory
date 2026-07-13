@@ -17,7 +17,8 @@ flowchart LR
   internal --> redis["Upstash Redis"]
   eve --> connect["Vercel Connect"]
   connect --> github["User GitHub"]
-  connect --> linear["User Linear"]
+  eve --> sandbox["Vercel Sandbox"]
+  sandbox --> github
 ```
 
 ## Identity boundary
@@ -72,9 +73,17 @@ Consent defaults off for web-created accounts. Conversational onboarding enables
 
 ## External connections
 
-GitHub and Linear use Vercel Connect. The application never asks users for developer keys. A Connect token is requested with the Better Auth user ID as its subject, so grants cannot cross users.
+GitHub uses Vercel Connect. The application never asks users for developer keys or personal access tokens. A Connect token is requested with the Better Auth user ID as its subject, so grants cannot cross users.
 
 Selected connectors receive separate short-lived browser links during onboarding. When authorization returns to Settings, the server confirms the grant and sends an iMessage confirmation to the verified phone.
+
+## Coding sandbox
+
+Explicit coding requests may use an app-owned Vercel Sandbox. The agent requests a short-lived GitHub token limited to the named repository with `contents:read`, clones into a fresh one-vCPU microVM, removes credentials from the Git remote, runs a bounded command batch, returns logs and a diff, and stops the non-persistent VM in `finally`.
+
+The user's Better Auth identity selects the GitHub grant, but Sandbox itself authenticates through the `use-memory` deployment's Vercel OIDC identity. Public Sign in with Vercel does not grant resource API access; those scopes remain private beta. Per-user Vercel Sandbox billing is therefore not represented as connected in v1.
+
+Sandbox never receives a GitHub write token. After an explicit user request in iMessage, the GitHub tools may publish the reviewed diff by creating a branch, updating files, and opening a pull request. Merge and destructive operations remain approval-gated.
 
 ## Storage
 
@@ -83,7 +92,8 @@ Selected connectors receive separate short-lived browser links during onboarding
 | Neon Postgres | Waitlist consent/status, auth, verified phone, sessions, profile, curated memory, onboarding, Mem0 staging |
 | Upstash Redis | Chat SDK state, deduplication, short recall cache |
 | Mem0 Cloud | Per-user episodic and semantic facts |
-| Vercel Connect | Per-user GitHub and Linear grants |
+| Vercel Connect | Per-user GitHub grants |
+| Vercel Sandbox | Ephemeral app-owned repository execution |
 | Resend | Recovery and email-verification delivery |
 
 Local development uses PGlite and process-memory Chat SDK state when remote services are absent.

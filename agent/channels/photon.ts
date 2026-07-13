@@ -7,7 +7,7 @@ import {
   logEvent,
   opaqueReference,
 } from "../../shared/observability.js";
-import { buildAppSessionAuth } from "../../shared/slack-auth.js";
+import { buildAppSessionAuth } from "../../shared/session-auth.js";
 import type {
   OnboardingGatewayResponse,
   OnboardingNativeChoice,
@@ -15,6 +15,7 @@ import type {
 import { runOnboardingGateway } from "../lib/onboarding-internal.js";
 import {
   createPhotonChannelRegistration,
+  parsePhotonOnboardingPollVote,
   photonAdapter,
   photonState,
 } from "../lib/photon.js";
@@ -26,6 +27,7 @@ const IMESSAGE_CONTEXT = [
 ] as const;
 
 const bridge = chatSdkChannel({
+  concurrency: "queue",
   userName: agent.name,
   ...createPhotonChannelRegistration(photonAdapter),
   state: photonState,
@@ -112,6 +114,29 @@ bot.onDirectMessage(async (thread, message) => {
     attachmentCount: message.attachments.length,
   };
   logEvent("info", "photon.message.received", fields);
+
+  const onboardingPollVote = parsePhotonOnboardingPollVote(message.raw);
+  if (onboardingPollVote !== undefined) {
+    if (onboardingPollVote === null) return;
+
+    const response = await runOnboardingGateway({
+      interaction: { kind: "consent", value: onboardingPollVote },
+      messageId: message.id,
+      phoneNumber,
+      text: "",
+      threadId: thread.id,
+    });
+
+    logEvent("info", "photon.onboarding.poll_vote", {
+      ...fields,
+      onboardingKind: response.kind,
+      durationMs: Date.now() - startedAt,
+    });
+    if (response.kind !== "ready") {
+      await postGatewayResponse(thread.id, phoneNumber, response);
+    }
+    return;
+  }
 
   try {
     await photonAdapter.markRead(thread.id, message.id);

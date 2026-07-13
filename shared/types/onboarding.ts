@@ -34,6 +34,10 @@ export interface OnboardingAttachmentInput {
 
 export interface OnboardingGatewayRequest {
   attachments?: OnboardingAttachmentInput[];
+  interaction?: {
+    kind: "consent";
+    value: "yes" | "no";
+  };
   messageId?: string;
   phoneNumber: string;
   text: string;

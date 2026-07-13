@@ -38,7 +38,6 @@ export default defineNuxtConfig({
     "/api/memory/**": { headers: privateNoStore },
     "/api/mem0/**": { headers: privateNoStore },
     "/api/connectors": { headers: privateNoStore },
-    "/api/slack/**": { headers: privateNoStore },
     "/api/integrations/**": { headers: privateNoStore },
     "/_eve_internal/**": { headers: noStore },
   },
@@ -60,7 +59,7 @@ export default defineNuxtConfig({
         {
           name: "description",
           content:
-            "Your personal AI agent. Chat on the web, Slack, or iMessage — query Linear and pick up where you left off.",
+            "Your personal AI agent. Chat on the web or iMessage, connect GitHub, and pick up where you left off.",
         },
         { name: "theme-color", content: "#1b1718" },
         { name: "color-scheme", content: "light dark" },

@@ -1,7 +1,7 @@
 {
   "name": "use-memory",
   "version": "0.0.0",
-  "description": "A durable personal AI assistant with shared memory across web, Slack, and iMessage",
+  "description": "A durable personal AI assistant with shared memory across web and iMessage",
   "license": "MIT",
   "author": "Montekkundan",
   "repository": {
@@ -42,6 +42,7 @@
     "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/connect": "0.3.2",
+    "@vercel/sandbox": "2.6.0",
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
     "chat": "^4.32.0",

@@ -21,6 +21,35 @@ export interface PhotonConfiguration {
   webhookSecret?: string;
 }
 
+interface PhotonPollOptionContent {
+  option?: { title?: unknown };
+  poll?: { title?: unknown };
+  selected?: unknown;
+  type?: unknown;
+}
+
+const ONBOARDING_POLL_TITLE_PREFIX = "Set up use-memory? ";
+
+export function parsePhotonOnboardingPollVote(raw: unknown): "yes" | "no" | null | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const content = (raw as { content?: PhotonPollOptionContent }).content;
+  if (content?.type !== "poll_option") return undefined;
+
+  if (
+    content.selected !== true
+    || typeof content.poll?.title !== "string"
+    || !content.poll.title.startsWith(ONBOARDING_POLL_TITLE_PREFIX)
+    || typeof content.option?.title !== "string"
+  ) {
+    return null;
+  }
+
+  if (content.option.title === "Yes, continue") return "yes";
+  if (content.option.title === "No, stop") return "no";
+  return null;
+}
+
 export function createPhotonChannelRegistration<
   TAdapter extends { readonly name: string },
 >(adapter: TAdapter) {

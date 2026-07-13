@@ -4,7 +4,7 @@ const error = ref("");
 
 onMounted(async () => {
   const id = typeof route.params.id === "string" ? route.params.id : "";
-  if (!['github', 'linear'].includes(id)) {
+  if (id !== 'github') {
     error.value = "This connection link is not supported.";
     return;
   }

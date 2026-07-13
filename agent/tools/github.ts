@@ -3,6 +3,18 @@ import { getToken, UserAuthorizationRequiredError } from "@vercel/connect";
 import { defineDynamic } from "eve/tools";
 import { CONNECT_USER_ISSUER, GITHUB_CONNECTOR } from "../../shared/connect.js";
 
+const IMESSAGE_PUBLISH_APPROVALS = {
+  createBranch: false,
+  createOrUpdateFile: false,
+  createPullRequest: false,
+} as const;
+
+export function githubApprovalForChannel(channelKind: string | undefined) {
+  return channelKind === "chat-sdk" || channelKind === "photon"
+    ? IMESSAGE_PUBLISH_APPROVALS
+    : true;
+}
+
 export default defineDynamic({
   events: {
     "session.started": async (_event, ctx) => {
@@ -21,7 +33,11 @@ export default defineDynamic({
           },
           scopes: ["repo"],
         });
-        return buildEveToolMap({ preset: "maintainer", token });
+        return buildEveToolMap({
+          preset: "maintainer",
+          token,
+          requireApproval: githubApprovalForChannel(ctx.channel.kind),
+        });
       }
       catch (error) {
         if (error instanceof UserAuthorizationRequiredError) {
