@@ -1,16 +1,35 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "experimentalServices": {
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": {
+        "service": "web",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/eve/v1/:path*",
+      "destination": {
+        "service": "eve"
+      }
+    },
+    {
+      "source": "/:path*",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ],
+  "services": {
     "web": {
-      "entrypoint": ".",
-      "framework": "nuxtjs",
-      "routePrefix": "/"
+      "root": ".",
+      "framework": "nuxtjs"
     },
     "eve": {
       "buildCommand": "eve build",
-      "entrypoint": ".",
       "framework": "eve",
-      "routePrefix": "/_eve_internal/eve"
+      "root": "."
     }
   }
 }

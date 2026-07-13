@@ -16,7 +16,7 @@ let pendingMessage: PendingMessage | null = null;
 const CHAT_PATH = /^\/chat\/[^/]+$/;
 
 function isHomeChatTransition(from: string, to: string) {
-  return (from === "/" && CHAT_PATH.test(to)) || (CHAT_PATH.test(from) && to === "/");
+  return (from === "/home" && CHAT_PATH.test(to)) || (CHAT_PATH.test(from) && to === "/home");
 }
 
 async function navigateWithChatPromptTransition(to: string) {
@@ -91,7 +91,7 @@ export async function startNewChat() {
   pendingMessage = null;
   resetStreamLog();
   resetAllEveAgents();
-  await navigateWithChatPromptTransition("/");
+  await navigateWithChatPromptTransition("/home");
 }
 
 export function useChatNavigation(chatId: MaybeRefOrGetter<string>) {

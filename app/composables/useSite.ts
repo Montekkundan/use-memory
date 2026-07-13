@@ -25,7 +25,7 @@ export function useSiteSeo(options?: {
   const description = options?.description ?? site.description;
   const path = options?.path ?? route.path;
   const canonical = site.url(path);
-  const ogImage = site.url(site.ogImage);
+  const ogImage = site.ogImage ? site.url(site.ogImage) : undefined;
 
   useSeoMeta({
     title,
@@ -40,7 +40,6 @@ export function useSiteSeo(options?: {
     twitterTitle: title,
     twitterDescription: description,
     twitterImage: ogImage,
-    twitterSite: site.twitter,
   });
 
   useHead({
@@ -49,7 +48,7 @@ export function useSiteSeo(options?: {
       { name: "author", content: site.author },
       {
         name: "keywords",
-        content: "Eve, Nuxt, personal agent, AI assistant, Better Auth, Slack, iMessage, Linear, template",
+        content: "Eve, Nuxt, personal agent, AI assistant, Better Auth, Slack, iMessage, Linear, memory",
       },
     ],
     script: [
@@ -61,7 +60,7 @@ export function useSiteSeo(options?: {
           "name": site.name,
           "description": site.description,
           "url": site.origin,
-          "image": ogImage,
+          ...(ogImage ? { image: ogImage } : {}),
           "applicationCategory": "DeveloperApplication",
           "operatingSystem": "Any",
           "offers": {

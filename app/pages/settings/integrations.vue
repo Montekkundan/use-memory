@@ -1,5 +1,18 @@
 <script setup lang="ts">
 const { connectors, error, refresh, isInitialLoad, pending } = useConnectors();
+const route = useRoute();
+const confirmationSent = ref(false);
+
+watch([connectors, pending], async () => {
+  if (confirmationSent.value || pending.value) return;
+  const connected = typeof route.query.connected === "string" ? route.query.connected : "";
+  if (!['github', 'linear'].includes(connected)) return;
+  const connector = connectors.value?.find(item => item.id === connected);
+  if (connector?.status.state !== "connected") return;
+
+  confirmationSent.value = true;
+  await $fetch(`/api/integrations/${connected}/notify`, { method: "POST" }).catch(() => undefined);
+}, { immediate: true });
 
 const connectedCount = computed(
   () => connectors.value?.filter(connector => connector.status.state === "connected").length ?? 0,
@@ -41,7 +54,7 @@ const servicesDescription = computed(() => {
         <div class="space-y-8">
           <SettingsSection
             title="Channels"
-            description="Link messaging platforms to your V account."
+            description="Link messaging platforms to your Use Memory account."
           >
             <IntegrationsSlackLinkCard />
           </SettingsSection>

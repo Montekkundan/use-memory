@@ -20,7 +20,7 @@ function rowToRecord(row: typeof schema.slackLinks.$inferSelect): SlackLinkRecor
     slackUserName: row.slackUserName ?? undefined,
     slackDisplayName: row.slackDisplayName ?? undefined,
     slackEmail: row.slackEmail ?? undefined,
-    linkedAt: row.linkedAt,
+    linkedAt: row.linkedAt.toISOString(),
   };
 }
 

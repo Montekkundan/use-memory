@@ -122,11 +122,11 @@ async function copyCode() {
       <ol class="space-y-2 text-xs text-muted">
         <li class="flex gap-2">
           <span class="text-dimmed">1.</span>
-          <span>In Slack, message <code class="text-toned">@V link {{ pendingCode }}</code></span>
+          <span>In Slack, message <code class="text-toned">@Use Memory link {{ pendingCode }}</code></span>
         </li>
         <li class="flex gap-2">
           <span class="text-dimmed">2.</span>
-          <span>Refresh this page once V confirms the link</span>
+          <span>Refresh this page once Use Memory confirms the link</span>
         </li>
       </ol>
 

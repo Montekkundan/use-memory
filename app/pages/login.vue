@@ -6,15 +6,16 @@ definePageMeta({
   prerender: true,
 });
 
-const site = useSite();
-
 const route = useRoute();
-const mode = ref<"sign-in" | "sign-up">("sign-in");
+type LoginStep = "phone" | "code" | "setup-email" | "recovery" | "email-sent";
+
+const step = ref<LoginStep>("phone");
+const phoneNumber = ref("");
+const code = ref("");
 const email = ref("");
-const password = ref("");
-const name = ref("");
 const error = ref("");
 const loading = ref(false);
+const emailPurpose = ref<"setup" | "recovery">("recovery");
 
 const highlights = [
   { icon: "i-lucide-message-square", label: "Web chat" },
@@ -26,36 +27,66 @@ const highlights = [
 
 const redirectTo = computed(() => {
   const value = route.query.redirect;
-  return typeof value === "string" && value.startsWith("/") ? value : "/";
+  return typeof value === "string" && value.startsWith("/") ? value : "/home";
 });
 
-async function handleSubmit() {
+const cardTitle = computed(() => ({
+  phone: "Continue with your phone",
+  code: "Enter your code",
+  "setup-email": "Add a recovery email",
+  recovery: "Recover with email",
+  "email-sent": "Check your email",
+})[step.value]);
+
+function showStep(next: LoginStep) {
+  error.value = "";
+  step.value = next;
+}
+
+async function sendPhoneCode() {
+  if (!phoneNumber.value) return;
   error.value = "";
   loading.value = true;
 
   try {
-    if (mode.value === "sign-up") {
-      const result = await authClient.signUp.email({
-        email: email.value,
-        password: password.value,
-        name: name.value || email.value.split("@")[0] || "User",
-      });
+    const result = await authClient.phoneNumber.sendOtp({
+      phoneNumber: phoneNumber.value,
+    });
 
-      if (result.error) {
-        error.value = result.error.message ?? "Sign up failed.";
-        return;
-      }
+    if (result.error) {
+      error.value = result.error.message ?? "Could not send the verification code.";
+      return;
     }
-    else {
-      const result = await authClient.signIn.email({
-        email: email.value,
-        password: password.value,
-      });
 
-      if (result.error) {
-        error.value = result.error.message ?? "Sign in failed.";
-        return;
-      }
+    code.value = "";
+    showStep("code");
+  }
+  finally {
+    loading.value = false;
+  }
+}
+
+async function verifyPhoneCode() {
+  if (code.value.length !== 6) return;
+  error.value = "";
+  loading.value = true;
+
+  try {
+    const result = await authClient.phoneNumber.verify({
+      phoneNumber: phoneNumber.value,
+      code: code.value,
+    });
+
+    if (result.error) {
+      error.value = result.error.message ?? "That code is invalid or expired.";
+      return;
+    }
+
+    const accountEmail = result.data?.user.email ?? "";
+    if (accountEmail.endsWith("@phone.use-memory.invalid")) {
+      email.value = "";
+      showStep("setup-email");
+      return;
     }
 
     await navigateTo(redirectTo.value);
@@ -63,6 +94,56 @@ async function handleSubmit() {
   finally {
     loading.value = false;
   }
+}
+
+async function requestRecoveryEmailSetup() {
+  error.value = "";
+  loading.value = true;
+
+  try {
+    const result = await authClient.changeEmail({
+      newEmail: email.value,
+      callbackURL: redirectTo.value,
+    });
+
+    if (result.error) {
+      error.value = result.error.message ?? "Could not send the verification email.";
+      return;
+    }
+
+    emailPurpose.value = "setup";
+    showStep("email-sent");
+  }
+  finally {
+    loading.value = false;
+  }
+}
+
+async function requestRecoveryLink() {
+  error.value = "";
+  loading.value = true;
+
+  try {
+    const result = await authClient.signIn.magicLink({
+      email: email.value,
+      callbackURL: redirectTo.value,
+    });
+
+    if (result.error) {
+      error.value = result.error.message ?? "Could not send the recovery link.";
+      return;
+    }
+
+    emailPurpose.value = "recovery";
+    showStep("email-sent");
+  }
+  finally {
+    loading.value = false;
+  }
+}
+
+async function skipRecoveryEmail() {
+  await navigateTo(redirectTo.value);
 }
 </script>
 
@@ -73,27 +154,103 @@ async function handleSubmit() {
         <UCard class="w-full">
           <template #header>
             <h2 class="text-lg font-semibold text-highlighted">
-              {{ mode === "sign-in" ? "Sign in" : "Create account" }}
+              {{ cardTitle }}
             </h2>
           </template>
 
           <form
+            v-if="step === 'phone'"
             class="space-y-4"
-            @submit.prevent="handleSubmit"
+            @submit.prevent="sendPhoneCode"
           >
-            <UFormField
-              v-if="mode === 'sign-up'"
-              label="Name"
-            >
-              <UInput
-                v-model="name"
-                class="w-full"
-                autocomplete="name"
-                placeholder="Your name"
+            <p class="text-sm text-muted">
+              We will send a six-digit sign-in code over iMessage.
+            </p>
+
+            <UFormField label="Phone number">
+              <ProfilePhoneInput
+                v-model="phoneNumber"
+                default-country="US"
+                size="md"
               />
             </UFormField>
 
-            <UFormField label="Email">
+            <p v-if="error" class="text-sm text-error">
+              {{ error }}
+            </p>
+
+            <UButton
+              type="submit"
+              block
+              color="neutral"
+              :disabled="!phoneNumber"
+              :loading="loading"
+            >
+              Send code
+            </UButton>
+          </form>
+
+          <form
+            v-else-if="step === 'code'"
+            class="space-y-4"
+            @submit.prevent="verifyPhoneCode"
+          >
+            <p class="text-sm text-muted">
+              Enter the code sent to {{ phoneNumber }}.
+            </p>
+
+            <UFormField label="Verification code">
+              <UInput
+                v-model="code"
+                class="w-full"
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                required
+                maxlength="6"
+                pattern="[0-9]{6}"
+                placeholder="123456"
+              />
+            </UFormField>
+
+            <p v-if="error" class="text-sm text-error">
+              {{ error }}
+            </p>
+
+            <UButton
+              type="submit"
+              block
+              color="neutral"
+              :disabled="code.length !== 6"
+              :loading="loading"
+            >
+              Verify and continue
+            </UButton>
+
+            <div class="flex justify-between gap-3 text-sm">
+              <button type="button" class="text-muted hover:text-highlighted" @click="showStep('phone')">
+                Change number
+              </button>
+              <button type="button" class="text-muted hover:text-highlighted" :disabled="loading" @click="sendPhoneCode">
+                Send a new code
+              </button>
+            </div>
+          </form>
+
+          <form
+            v-else-if="step === 'setup-email' || step === 'recovery'"
+            class="space-y-4"
+            @submit.prevent="step === 'setup-email' ? requestRecoveryEmailSetup() : requestRecoveryLink()"
+          >
+            <p class="text-sm text-muted">
+              {{
+                step === "setup-email"
+                  ? "Use this only if you lose access to your phone. We will verify it before saving it."
+                  : "We will email a short-lived, one-time sign-in link if this address belongs to an account."
+              }}
+            </p>
+
+            <UFormField label="Recovery email">
               <UInput
                 v-model="email"
                 class="w-full"
@@ -101,18 +258,6 @@ async function handleSubmit() {
                 autocomplete="email"
                 required
                 placeholder="you@example.com"
-              />
-            </UFormField>
-
-            <UFormField label="Password">
-              <UInput
-                v-model="password"
-                class="w-full"
-                type="password"
-                autocomplete="current-password"
-                required
-                minlength="8"
-                placeholder="••••••••"
               />
             </UFormField>
 
@@ -129,22 +274,48 @@ async function handleSubmit() {
               color="neutral"
               :loading="loading"
             >
-              {{ mode === "sign-in" ? "Sign in" : "Create account" }}
+              {{ step === "setup-email" ? "Verify recovery email" : "Email me a sign-in link" }}
+            </UButton>
+
+            <UButton
+              v-if="step === 'setup-email'"
+              type="button"
+              block
+              color="neutral"
+              variant="ghost"
+              @click="skipRecoveryEmail"
+            >
+              Skip for now
             </UButton>
           </form>
+
+          <div v-else class="space-y-4">
+            <p class="text-sm text-muted">
+              {{
+                emailPurpose === "setup"
+                  ? `Open the verification link sent to ${email}. It will finish setup and bring you into the app.`
+                  : `If ${email} belongs to an account, a short-lived sign-in link is on its way.`
+              }}
+            </p>
+          </div>
 
           <template #footer>
             <p class="text-center text-sm text-muted">
               <button
+                v-if="step === 'phone'"
                 type="button"
                 class="text-highlighted hover:underline"
-                @click="mode = mode === 'sign-in' ? 'sign-up' : 'sign-in'"
+                @click="showStep('recovery')"
               >
-                {{
-                  mode === "sign-in"
-                    ? "Need an account? Sign up"
-                    : "Already have an account? Sign in"
-                }}
+                Lost access to your phone? Use recovery email
+              </button>
+              <button
+                v-else-if="step === 'recovery' || (step === 'email-sent' && emailPurpose === 'recovery')"
+                type="button"
+                class="text-highlighted hover:underline"
+                @click="showStep('phone')"
+              >
+                Back to phone sign in
               </button>
             </p>
           </template>
@@ -153,16 +324,7 @@ async function handleSubmit() {
     </section>
 
     <section class="relative flex flex-1 flex-col px-6 py-6 sm:px-8 lg:px-12 lg:py-8 hero-glow">
-      <header class="flex items-center justify-between">
-        <NuxtLink
-          to="https://vercel.com/eve"
-          target="_blank"
-          class="text-highlighted transition-opacity hover:opacity-80"
-          aria-label="Eve on Vercel"
-        >
-          <Logo class="h-[18px] w-auto text-highlighted" />
-        </NuxtLink>
-
+      <header class="flex justify-end">
         <UColorModeButton
           color="neutral"
           variant="ghost"
@@ -173,7 +335,7 @@ async function handleSubmit() {
         <div class="max-w-md space-y-5">
           <div class="space-y-3">
             <h1 class="text-3xl font-semibold tracking-tight text-highlighted sm:text-4xl">
-              V
+              Use Memory
             </h1>
             <p class="text-sm leading-relaxed text-muted sm:text-base">
               A durable AI assistant with long-term memory. Chat on the web, Slack, or iMessage — query Linear and pick up where you left off.
@@ -196,32 +358,6 @@ async function handleSubmit() {
         </div>
       </div>
 
-      <footer class="flex flex-wrap items-center gap-x-4 gap-y-3 pt-6">
-        <NuxtLink
-          :to="site.deployUrl"
-          target="_blank"
-          rel="noopener"
-        >
-          <img
-            src="https://vercel.com/button"
-            alt="Deploy with Vercel"
-            width="133"
-            height="32"
-          >
-        </NuxtLink>
-
-        <p class="text-xs text-dimmed">
-          Built with
-          <NuxtLink
-            to="https://vercel.com/eve"
-            target="_blank"
-            class="text-muted underline-offset-2 hover:text-highlighted hover:underline"
-          >
-            Eve
-          </NuxtLink>
-          on Vercel
-        </p>
-      </footer>
     </section>
   </div>
 </template>

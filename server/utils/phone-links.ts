@@ -1,38 +1,39 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 import type { PhoneLinkRecord } from "#shared/types/phone-link";
-
-const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+import { normalizeE164 } from "#shared/phone";
 
 export function normalizePhoneNumber(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "";
+  try {
+    return normalizeE164(value);
   }
-
-  const normalized = trimmed.startsWith("+") ? trimmed : `+${trimmed.replace(/\D/g, "")}`;
-  if (!E164_PATTERN.test(normalized)) {
+  catch {
     throw createError({
       statusCode: 400,
       statusMessage: "Phone number must be in E.164 format (e.g. +33612345678)",
     });
   }
-
-  return normalized;
 }
 
-function rowToRecord(row: typeof schema.phoneLinks.$inferSelect): PhoneLinkRecord {
+function rowToRecord(row: typeof schema.user.$inferSelect): PhoneLinkRecord | undefined {
+  if (!row.phoneNumber || !row.phoneNumberVerified) {
+    return undefined;
+  }
+
   return {
-    appUserId: row.appUserId,
+    appUserId: row.id,
     phoneNumber: row.phoneNumber,
-    linkedAt: row.linkedAt,
+    linkedAt: (row.phoneNumberVerifiedAt ?? row.updatedAt).toISOString(),
   };
 }
 
 export async function getPhoneLinkForAppUser(appUserId: string) {
   const [row] = await db.select()
-    .from(schema.phoneLinks)
-    .where(eq(schema.phoneLinks.appUserId, appUserId))
+    .from(schema.user)
+    .where(and(
+      eq(schema.user.id, appUserId),
+      eq(schema.user.phoneNumberVerified, true),
+    ))
     .limit(1);
 
   return row ? rowToRecord(row) : undefined;
@@ -42,32 +43,12 @@ export async function getPhoneLinkByPhoneNumber(phoneNumber: string) {
   const normalized = normalizePhoneNumber(phoneNumber);
 
   const [row] = await db.select()
-    .from(schema.phoneLinks)
-    .where(eq(schema.phoneLinks.phoneNumber, normalized))
+    .from(schema.user)
+    .where(and(
+      eq(schema.user.phoneNumber, normalized),
+      eq(schema.user.phoneNumberVerified, true),
+    ))
     .limit(1);
 
   return row ? rowToRecord(row) : undefined;
-}
-
-export async function upsertPhoneLinkForAppUser(appUserId: string, phoneNumber: string) {
-  const normalized = normalizePhoneNumber(phoneNumber);
-
-  await db.delete(schema.phoneLinks)
-    .where(eq(schema.phoneLinks.appUserId, appUserId));
-
-  await db.insert(schema.phoneLinks).values({
-    appUserId,
-    phoneNumber: normalized,
-  });
-
-  return (await getPhoneLinkForAppUser(appUserId))!;
-}
-
-export async function deletePhoneLinkForAppUser(appUserId: string) {
-  const before = await getPhoneLinkForAppUser(appUserId);
-
-  await db.delete(schema.phoneLinks)
-    .where(eq(schema.phoneLinks.appUserId, appUserId));
-
-  return Boolean(before);
 }

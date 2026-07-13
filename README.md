@@ -1,163 +1,131 @@
-<img src="./public/banner.png" width="100%" alt="Personal Agent Template" />
+# use-memory
 
-# Personal Agent Template
+A personal agent you can text from iMessage. Photon Cloud delivers messages to an Eve agent on Vercel, Better Auth owns identity, and Mem0 recalls only the verified user's memories.
 
-[![CI](https://img.shields.io/github/actions/workflow/status/vercel-labs/personal-agent-template/ci.yml?branch=main&color=black)](https://github.com/vercel-labs/personal-agent-template/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/github/license/vercel-labs/personal-agent-template?color=black)](https://github.com/vercel-labs/personal-agent-template/blob/main/LICENSE)
-[![Vercel](https://img.shields.io/badge/Vercel-black?logo=vercel&logoColor=white)](https://vercel.com)
+## What is included
 
-**Template.** Fork it, customize it, and deploy your own personal agent.
+- Public phone waitlist with iPhone/Android routing and recorded messaging consent
+- Protected approval queue that can invite iPhone users through Photon
+- Photon Cloud iMessage DMs through Eve's Chat SDK channel
+- Phone OTP sign-in, recovery email, and one-time browser links with Better Auth
+- Resumable chat-only onboarding with polls and numbered multiselect replies
+- Consent-gated Mem0 recall and automatic memory writes per Better Auth user
+- Neon Postgres for auth, profiles, onboarding, and durable memory jobs
+- Redis for Chat SDK state, webhook deduplication, and short recall caching
+- User-owned GitHub and Linear authorization through Vercel Connect
+- Web chat, memory controls, integration settings, and optional Slack linking
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
+## Run locally
 
-Open source personal agent template. Web chat, Slack, iMessage, GitHub, Linear, and long-term memory — one codebase, durable sessions, user-approved memory saves.
-
-## Features
-
-### Web Chat — Threads That Persist
-
-Chat with your agent in the browser. Threads resume across sessions, tool calls render in real time, and `save_memory` proposals require explicit approval before anything is stored.
-
-### Slack — Same Agent, Different Surface
-
-DMs and @mentions on Slack. Link your Slack account to your web profile so memory and context follow you across channels.
-
-### iMessage — Text Your Agent
-
-Reach V over iMessage via [Sendblue](https://chat-sdk.dev/adapters/vendor-official/sendblue). Add your phone number in **Profile**, then message the Sendblue line — same memory and context as web and Slack.
-
-### GitHub — Repos, PRs, and CI
-
-Connect GitHub via Vercel Connect. Ask about repositories, pull requests, issues, and workflows — the agent uses [@github-tools/sdk](https://github-tools.com/frameworks/eve) tools with durable approval on writes.
-
-### Linear — Issues On Demand
-
-Connect Linear via Vercel Connect MCP. Ask about issues, projects, and cycles — the agent queries Linear tools, never guesses from memory.
-
-### Long-Term Memory — Import and Grow
-
-Raycast-style import from ChatGPT or other assistants. Five fixed categories, one prose block each. Edit, delete, or let the agent propose updates via `save_memory`.
-
-### Daily Summary — On Demand
-
-Morning briefing skill: active focus from memory, assigned Linear issues, and a suggested next action. Trigger from the home quick action or ask in chat.
-
-## [Architecture](./docs/ARCHITECTURE.md)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│              Web chat · Slack DMs / mentions · iMessage           │
-└───────────────────────────────┬─────────────────────────────────┘
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              Eve agent (channels, tools, skills)                 │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │ /api/internal/* (Bearer auth)
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│         Nuxt (UI + Nitro API + Better Auth + SQLite)           │
-└───────────────────────────────┬─────────────────────────────────┘
-                                ▼
-                      Vercel Connect (Linear, Slack)
-```
-
-On Vercel, two services deploy from [`vercel.json`](vercel.json): `web` (Nuxt) and `eve` (agent runtime).
-
-## Quick Start
-
-### Deploy to Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
-
-### Self-hosting
-
-**Requirements:** Node.js 24+, pnpm
+Requirements: Node.js 24+ and pnpm 9.
 
 ```bash
-git clone https://github.com/vercel-labs/personal-agent-template.git
-cd personal-agent-template
-
-pnpm install
+pnpm install --frozen-lockfile
 cp .env.example .env
 pnpm db:migrate
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), create an account, and start chatting.
+Local development uses PGlite when no remote Postgres URL is set. Phone delivery, Mem0, recovery email, and external connectors require their corresponding credentials.
 
-**Required environment variables:**
+See [Environment](./docs/ENVIRONMENT.md) for every variable.
+
+## Deploy to Vercel
+
+The repository is configured as two Vercel services. Project-level routing sends `/eve/v1/**` to Eve and every other path to Nuxt.
 
 ```bash
-BETTER_AUTH_SECRET=...       # openssl rand -base64 32
-BETTER_AUTH_URL=http://localhost:3000
-INTERNAL_API_SECRET=...      # openssl rand -base64 32 — same on web + eve
+vercel link --yes --team monteks-projects --project use-memory
+vercel env pull .env.local --yes
+pnpm db:migrate
+vercel deploy
 ```
 
-See [ENVIRONMENT.md](./docs/ENVIRONMENT.md) for the full reference.
+Attach a Neon database and an Upstash Redis resource from the Vercel Marketplace. Configure a Resend sending domain, then add Photon and Mem0 credentials directly in Vercel. Never paste secrets into chat or commit them.
 
-Fresh local database:
+Set `WAITLIST_ADMIN_IDENTIFIERS` to your E.164 phone number for the first login. That environment-controlled number may request its initial OTP without a waitlist record; after verification it can manage `/admin`. Additional administrators may be listed by Better Auth user ID, verified email, or E.164 phone.
 
-```bash
-rm -rf .data/db && pnpm db:migrate
+Photon labels its values `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET`, and `SPECTRUM_SIGNING_SECRET`. Add those names directly to Vercel. The equivalent `IMESSAGE_PROJECT_ID`, `IMESSAGE_PROJECT_SECRET`, and `IMESSAGE_WEBHOOK_SECRET` names are supported aliases; do not configure both sets.
+
+The Photon webhook is:
+
+```text
+https://use-memory.vercel.app/eve/v1/photon
 ```
 
-## Customization
-
-Personal Agent Template ships with **V** as the example persona. See the [Customization Guide](./docs/CUSTOMIZATION.md) for how to:
-
-- Rename your agent (name, slug, persona)
-- Change the AI model
-- Add tools and skills
-- Configure Slack, iMessage, and Linear integrations
-- Theme the UI
-- Deploy your fork
-
-## Memory
-
-Long-term memory is injected into every Eve session for authenticated users (web, linked Slack, and iMessage).
-
-1. Open **Profile → Import Memory**
-2. Copy the export prompt into ChatGPT, Claude, etc.
-3. Paste the response → **Add to Memory**
-4. Start a **new chat** so the agent picks up the latest context
-
-V can also propose facts via **`save_memory`** — approve or skip in chat. Edit or delete entries on **Profile → Memory**.
-
-## How It Works
-
-> For the full technical deep-dive, see [Architecture](./docs/ARCHITECTURE.md).
-
-1. **Auth**: Users sign in via Better Auth (email/password)
-2. **Session start**: Eve fetches profile + memory and injects into agent instructions
-3. **Chat**: Web UI streams through Eve; Slack events hit the slack channel; iMessage via Sendblue
-4. **Tools**: Agent calls weather, save_memory, Linear MCP as needed
-5. **Internal API**: Agent reads/writes memory, Slack links, and phone links via authenticated Nitro routes
-
-## Development
+Create and attach these Vercel Connect resources:
 
 ```bash
-pnpm dev          # Nuxt + Eve (eve/nuxt module — see Eve docs)
-pnpm typecheck    # TypeScript check
+vercel connect create github --name use-memory
+vercel connect attach github/use-memory
+vercel connect create mcp.linear.app --name linear
+vercel connect attach mcp.linear.app/linear
+```
+
+Each user authorizes their own GitHub and Linear account. They never provide a developer API key.
+
+## Use it from iMessage
+
+1. Join the waitlist at `https://use-memory.vercel.app` with an iPhone number.
+2. An administrator signs in and grants access at `/admin`.
+3. Photon accepts an invitation addressed to that number. Save the sending number as **Use Memory**.
+4. Reply `START`, then reply with the six-digit verification code.
+5. Complete consent, name, timezone, preferences, interests, and connector choices in the conversation.
+6. Open the short-lived GitHub or Linear links when offered.
+7. Keep texting the same contact. Later conversations recall only your verified user namespace.
+
+The approval screen records whether Photon accepted the outbound request; that is not a carrier delivery receipt. Photon Cloud does not require a Mac to remain online.
+
+## Android
+
+Android visitors can join with a mobile number and email, but the current product does not start an Android conversation. Their request remains queued until an SMS/RCS channel is attached.
+
+Photon advertises SMS/RCS fallback, but the current Chat SDK adapter does not expose the selected transport or delivery result. Keep Photon for the iMessage experience, and add the official Twilio Chat SDK adapter for an explicit SMS fallback. Linq is another option if transport selection and message delivery webhooks are more important than preserving the Photon implementation.
+
+## Web app
+
+- `/` — public waitlist with a live particle scene and phone/platform form
+- `/home` and `/chat/:id` — authenticated Eve chat, streaming activity, retries, approvals, and tool results
+- Sidebar — conversation history, search, keyboard shortcuts, and deletion
+- Settings → Profile — profile fields, verified phone/recovery email, curated memory, and Mem0 search/delete/forget controls
+- Settings → Integrations — per-user GitHub and Linear grants through Vercel Connect, plus optional Slack linking
+- `/connect/:id` — short-lived authenticated browser bridge opened from iMessage
+- `/admin` — owner-only approval queue, Photon invitation status, and searchable request trace IDs
+
+## Memory model
+
+Curated profile memory remains pinned context you can edit directly. Automatic Mem0 memory is separate:
+
+- `user_id` is the Better Auth user ID.
+- `agent_id` and `app_id` are `use-memory`.
+- Up to eight relevant facts are injected as untrusted context, never instructions.
+- The final user/assistant pair is staged in Postgres before delivery to Mem0.
+- Secrets, credentials, OAuth tokens, OTPs, and recovery codes are excluded.
+- Settings → Profile can search, delete, pause, or forget all automatic memory.
+
+## iMessage limitations
+
+- Photon polls support single choice, not arbitrary multiselect. Onboarding accepts replies such as `1,3,4` as a fallback.
+- Responses are sent when complete; iMessage does not receive token-by-token streaming.
+- Inbound voice notes currently expose metadata but not reliable downloadable audio bytes through the adapter, so the agent asks for text.
+- Typing, reactions, polls, files, read state, and outbound voice depend on the provisioned Photon Cloud plan and should be verified on the live line.
+
+## Commands
+
+```bash
+pnpm test         # Vitest unit tests
+pnpm typecheck    # Nuxt and TypeScript checks
 pnpm build        # Production build
-pnpm db:generate  # Generate Drizzle migrations
+pnpm db:generate  # Generate PostgreSQL migrations
 pnpm db:migrate   # Apply migrations
 ```
 
-See [AGENTS.md](./AGENTS.md) for notes aimed at AI coding assistants.
+## Documentation
 
-## Built With
-
-- [Eve](https://eve.dev) — Durable agent framework
-- [Nuxt](https://nuxt.com) — Full-stack Vue framework
-- [Nuxt UI](https://ui.nuxt.com) — UI component library
-- [NuxtHub](https://hub.nuxt.com) — SQLite database
-- [Better Auth](https://www.better-auth.com) — Authentication
-- [Drizzle ORM](https://orm.drizzle.team) — Type-safe database queries
-- [Vercel Connect](https://vercel.com/docs/connect) — Linear and Slack integrations
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to get involved.
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Environment](./docs/ENVIRONMENT.md)
+- [Configuration](./docs/CUSTOMIZATION.md)
+- [Contributing](./CONTRIBUTING.md)
 
 ## License
 

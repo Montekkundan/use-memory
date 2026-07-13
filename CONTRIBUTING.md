@@ -1,25 +1,25 @@
-# Contributing to Personal Agent Template
+# Contributing to use-memory
 
 Thank you for your interest in contributing!
 
 ## Reporting Bugs
 
-- Search [existing issues](https://github.com/vercel-labs/personal-agent-template/issues) before opening a new one
+- Search [existing issues](https://github.com/Montekkundan/use-memory/issues) before opening a new one
 - Include steps to reproduce, expected behavior, and actual behavior
 - Include your environment (Node version, OS, browser)
-- Use the [bug report template](https://github.com/vercel-labs/personal-agent-template/issues/new?template=bug-report.yml)
+- Use the [bug report form](https://github.com/Montekkundan/use-memory/issues/new?template=bug-report.yml)
 
 ## Suggesting Features
 
-- Open a [feature request](https://github.com/vercel-labs/personal-agent-template/issues/new?template=feature-request.yml)
-- Describe the use case and why it would be valuable for a **template** (reusable by many forks)
+- Open a [feature request](https://github.com/Montekkundan/use-memory/issues/new?template=feature-request.yml)
+- Describe the use case and why it would be valuable to use-memory users
 - If possible, outline a proposed implementation
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/vercel-labs/personal-agent-template.git
-cd personal-agent-template
+git clone https://github.com/Montekkundan/use-memory.git
+cd use-memory
 
 pnpm install
 cp .env.example .env
@@ -32,7 +32,7 @@ Set real values in `.env`. Never commit secrets or `.data/`.
 ## Project Structure
 
 ```
-personal-agent-template/
+use-memory/
 ├── agent/          # Eve agent: channels, tools, skills, connections
 ├── app/            # Nuxt 4 UI: chat, settings, profile
 ├── server/         # Nitro API, Drizzle schema, auth, memory
@@ -61,9 +61,9 @@ personal-agent-template/
 
 PR titles must follow Conventional Commits (enforced by CI). Scopes: `app`, `agent`, `server`, `docs`, `deps`.
 
-## Customizing the Template
+## Configuring the Agent
 
-If you are forking for your own agent (not contributing upstream), see [docs/CUSTOMIZATION.md](./docs/CUSTOMIZATION.md).
+See [docs/CUSTOMIZATION.md](./docs/CUSTOMIZATION.md) for branding, model, tool, and integration settings.
 
 ## License
 

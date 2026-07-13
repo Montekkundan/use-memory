@@ -24,7 +24,7 @@ const { data, error, pending: resumePending } = await useAsyncData(
 );
 
 if (error.value || !data.value?.thread) {
-  await navigateTo("/");
+  await navigateTo("/home");
 }
 
 const thread = computed(() => data.value!.thread);

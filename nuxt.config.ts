@@ -1,8 +1,17 @@
 const privateNoStore = { "cache-control": "private, no-store" } as const;
 const noStore = { "cache-control": "no-store" } as const;
+const remoteDatabaseUrl = process.env.POSTGRES_URL
+  || process.env.POSTGRESQL_URL
+  || process.env.DATABASE_URL;
+const hasRemoteDatabase = Boolean(remoteDatabaseUrl);
 
 export default defineNuxtConfig({
   modules: ["@nuxt/ui", "@comark/nuxt", "eve/nuxt", "@nuxthub/core", "@vercel/analytics"],
+  eve: {
+    // Eve 0.20 still generates the retired experimentalServices shape.
+    // vercel.json owns the current multi-service configuration instead.
+    configureVercelJson: false,
+  },
   css: ["~/assets/css/main.css"],
   devtools: { enabled: true },
   compatibilityDate: "latest",
@@ -11,11 +20,15 @@ export default defineNuxtConfig({
     viewTransition: true,
   },
   routeRules: {
+    "/": { prerender: true },
     "/login": { prerender: true },
-    "/": { ssr: true, headers: privateNoStore },
+    "/home": { ssr: true, headers: privateNoStore },
+    "/admin/**": { ssr: true, headers: privateNoStore },
     "/chat/**": { ssr: true, headers: privateNoStore },
     "/settings/**": { ssr: true, headers: privateNoStore },
     "/api/auth/**": { headers: noStore },
+    "/api/waitlist": { headers: noStore },
+    "/api/admin/**": { headers: privateNoStore },
     "/api/internal/**": { headers: noStore },
     "/api/profile": { headers: privateNoStore },
     "/api/profile/**": { headers: privateNoStore },
@@ -23,6 +36,7 @@ export default defineNuxtConfig({
     "/api/threads/**": { headers: privateNoStore },
     "/api/memory": { headers: privateNoStore },
     "/api/memory/**": { headers: privateNoStore },
+    "/api/mem0/**": { headers: privateNoStore },
     "/api/connectors": { headers: privateNoStore },
     "/api/slack/**": { headers: privateNoStore },
     "/api/integrations/**": { headers: privateNoStore },
@@ -31,14 +45,14 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     prerender: {
-      routes: ["/login"],
+      routes: ["/", "/login"],
       crawlLinks: false,
     },
   },
   app: {
     head: {
       htmlAttrs: { lang: "en" },
-      title: "V",
+      title: "use-memory",
       titleTemplate: "%s",
       charset: "utf-8",
       viewport: "width=device-width, initial-scale=1",
@@ -66,7 +80,16 @@ export default defineNuxtConfig({
   },
 
   hub: {
-    db: "sqlite",
+    db: {
+      dialect: "postgresql",
+      driver: hasRemoteDatabase ? "neon-http" : "pglite",
+      ...(hasRemoteDatabase
+        ? {
+            connection: { url: remoteDatabaseUrl },
+            applyMigrationsDuringBuild: false,
+          }
+        : {}),
+    },
   },
   runtimeConfig: {
     betterAuthSecret: process.env.BETTER_AUTH_SECRET,

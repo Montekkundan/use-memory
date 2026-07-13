@@ -14,7 +14,7 @@ const searchGroups = computed(() => [
     items: [
       {
         label: "New chat",
-        to: "/",
+        to: "/home",
         icon: "i-lucide-circle-plus",
         kbds: ["meta", "o"],
         onSelect: () => startNewChat(),
@@ -55,11 +55,11 @@ defineShortcuts({
     >
       <template #header="{ collapsed }">
         <NuxtLink
-          to="/"
+          to="/home"
           class="flex items-center min-w-0"
           :class="collapsed ? 'mx-auto' : 'px-2.5'"
         >
-          <Logo class="h-5 w-auto shrink-0 text-highlighted" />
+          <UIcon name="i-lucide-brain" class="size-5 shrink-0 text-highlighted" />
         </NuxtLink>
 
         <UDashboardSidebarCollapse

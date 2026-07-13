@@ -121,8 +121,8 @@ async function handleSaveEdit() {
 <template>
   <section>
     <SettingsSection
-      title="Memory"
-      description="Long-term context V uses across web, Slack, and iMessage."
+      title="Curated memory"
+      description="Profile context you explicitly import, edit, or approve."
     >
       <template
         v-if="hasMemory && !pending"
@@ -161,7 +161,7 @@ async function handleSaveEdit() {
           No memory yet.
         </p>
         <p class="mt-1 text-xs text-dimmed">
-          Import from ChatGPT or let V suggest saving preferences in chat.
+          Import from ChatGPT or let Use Memory suggest saving preferences in chat.
         </p>
         <UButton
           class="mt-4"

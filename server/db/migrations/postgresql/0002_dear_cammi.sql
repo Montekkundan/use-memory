@@ -1,0 +1,2 @@
+ALTER TABLE "waitlist_entries" ADD COLUMN "messaging_consent_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+ALTER TABLE "waitlist_entries" ADD COLUMN "messaging_consent_version" text DEFAULT 'waitlist-v1' NOT NULL;

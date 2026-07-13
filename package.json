@@ -1,15 +1,15 @@
 {
-  "name": "personal-agent-template",
+  "name": "use-memory",
   "version": "0.0.0",
-  "description": "A durable personal AI assistant template built with Eve, Nuxt 4, and Better Auth",
+  "description": "A durable personal AI assistant with shared memory across web, Slack, and iMessage",
   "license": "MIT",
-  "author": "Hugo Richard",
+  "author": "Montekkundan",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vercel-labs/personal-agent-template"
+    "url": "https://github.com/Montekkundan/use-memory"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/personal-agent-template/issues"
+    "url": "https://github.com/Montekkundan/use-memory/issues"
   },
   "engines": {
     "node": ">=24"
@@ -23,28 +23,35 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "start": "nuxt preview",
+    "test": "vitest run",
     "typecheck": "nuxt typecheck",
-    "db:generate": "nuxt db generate",
-    "db:migrate": "nuxt db migrate"
+    "db:generate": "nuxt-db generate",
+    "db:migrate": "nuxt-db migrate"
   },
   "dependencies": {
+    "@chat-adapter/state-memory": "4.32.0",
+    "@chat-adapter/state-redis": "4.32.0",
     "@comark/nuxt": "^0.5.0",
+    "@electric-sql/pglite": "^0.5.4",
     "@github-tools/sdk": "^1.7.0",
-    "@libsql/client": "^0.17.4",
+    "@neondatabase/serverless": "^1.1.0",
     "@nuxt/ui": "^4.9.0",
     "@nuxthub/core": "^0.10.7",
+    "@photon-ai/chat-adapter-imessage": "^2.2.1",
     "@shikijs/langs": "^4.3.1",
+    "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/connect": "0.3.2",
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
     "chat": "^4.32.0",
-    "chat-adapter-sendblue": "^0.2.0",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "eve": "^0.20.0",
     "maska": "^3.2.0",
+    "mem0ai": "^3.1.0",
     "nuxt": "^4.4.8",
+    "resend": "^6.17.2",
     "shiki": "^4.3.1",
     "tailwindcss": "^4.3.2",
     "vue": "^3.5.39",
@@ -56,6 +63,7 @@
     "@types/node": "26.1.0",
     "microsandbox": "^0.6.5",
     "typescript": "^6.0.3",
+    "vitest": "^4.0.0",
     "vue-tsc": "^3.3.6"
   }
 }

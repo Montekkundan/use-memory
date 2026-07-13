@@ -103,7 +103,7 @@ defineShortcuts({
       <ol class="list-decimal space-y-1.5 ps-5 text-sm leading-relaxed text-toned marker:text-dimmed">
         <li>Click the "Copy Prompt" button</li>
         <li>Go to your AI provider, and paste it into a new chat</li>
-        <li>Paste the response below and add it to your V memory</li>
+        <li>Paste the response below and add it to your Use Memory profile</li>
       </ol>
 
       <p class="text-xs leading-relaxed text-dimmed">

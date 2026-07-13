@@ -6,7 +6,6 @@ const { memory, pending: memoryPending } = useMemory();
 
 const form = reactive({
   name: "",
-  phoneNumber: "",
   timezone: "UTC",
   locale: "en",
   bio: "",
@@ -18,7 +17,6 @@ const toast = useToast();
 const isDirty = computed(() => {
   if (!profile.value) return false;
   return form.name !== profile.value.name
-    || form.phoneNumber !== (profile.value.phoneNumber ?? "")
     || form.timezone !== profile.value.timezone
     || form.locale !== profile.value.locale
     || form.bio !== profile.value.bio;
@@ -27,7 +25,6 @@ const isDirty = computed(() => {
 watch(profile, (value) => {
   if (!value) return;
   form.name = value.name;
-  form.phoneNumber = value.phoneNumber ?? "";
   form.timezone = value.timezone;
   form.locale = value.locale;
   form.bio = value.bio;
@@ -40,7 +37,6 @@ async function handleSave() {
   try {
     await saveProfile({
       name: form.name.trim(),
-      phoneNumber: form.phoneNumber.trim() || null,
       timezone: form.timezone,
       locale: form.locale,
       bio: form.bio,
@@ -59,7 +55,6 @@ async function handleSave() {
 function resetForm() {
   if (!profile.value) return;
   form.name = profile.value.name;
-  form.phoneNumber = profile.value.phoneNumber ?? "";
   form.timezone = profile.value.timezone;
   form.locale = profile.value.locale;
   form.bio = profile.value.bio;
@@ -105,11 +100,11 @@ function resetForm() {
         >
           <SettingsSection
             title="Profile"
-            description="How V identifies you across web, Slack, and iMessage."
+            description="How Use Memory identifies you across web, Slack, and iMessage."
           >
             <SettingsRow
               label="Name"
-              description="Shown in the sidebar and used when V addresses you."
+              description="Shown in the sidebar and used when Use Memory addresses you."
             >
               <UInput
                 v-model="form.name"
@@ -120,7 +115,7 @@ function resetForm() {
 
             <SettingsRow
               label="Email"
-              description="Used for sign-in. Contact support to change it."
+              description="Optional verified recovery address. Contact support to change it."
             >
               <p class="text-sm text-toned">
                 {{ profile?.email }}
@@ -129,12 +124,11 @@ function resetForm() {
 
             <SettingsRow
               label="Phone"
-              description="Your E.164 number for iMessage linking via Sendblue."
+              description="Verified identity used for iMessage and sign-in. It cannot be edited here."
             >
-              <ProfilePhoneInput
-                v-model="form.phoneNumber"
-                :default-country="form.locale === 'fr' ? 'FR' : 'US'"
-              />
+              <p class="text-sm text-toned">
+                {{ profile?.phoneNumber ?? "Not verified" }}
+              </p>
             </SettingsRow>
 
             <SettingsRow
@@ -199,6 +193,8 @@ function resetForm() {
           :memory="memory"
           :pending="memoryPending"
         />
+
+        <ProfileAutomaticMemorySection class="mt-8" />
       </div>
     </template>
 
