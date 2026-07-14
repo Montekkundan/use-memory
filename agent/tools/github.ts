@@ -1,7 +1,7 @@
-import { buildEveToolMap } from "@github-tools/sdk/eve";
 import { getToken, UserAuthorizationRequiredError } from "@vercel/connect";
 import { defineDynamic } from "eve/tools";
 import { CONNECT_USER_ISSUER, GITHUB_CONNECTOR } from "../../shared/connect.js";
+import { buildBundledEveGithubToolMap } from "../lib/github-eve-adapter.js";
 import { sessionUserId } from "../lib/session-user.js";
 
 const IMESSAGE_PUBLISH_APPROVALS = {
@@ -34,8 +34,7 @@ export default defineDynamic({
           },
           scopes: ["repo"],
         });
-        return buildEveToolMap({
-          preset: "maintainer",
+        return buildBundledEveGithubToolMap({
           token,
           requireApproval: githubApprovalForChannel(ctx.channel.kind),
         });
