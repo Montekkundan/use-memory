@@ -9,9 +9,9 @@ import type {
   OnboardingStep,
 } from "#shared/types/onboarding";
 import {
-  isIanaTimezone,
   parseNumberedChoices,
   parseOnboardingConsent,
+  resolveTimezoneInput,
 } from "#shared/onboarding-input";
 import { imessageOnboardingSessions } from "~~/server/db/schema/onboarding";
 import { sendPhoneSignInCode } from "~~/server/utils/auth-delivery";
@@ -99,7 +99,7 @@ function promptFor(row: OnboardingRow): { message: string; nativeChoice?: Onboar
       return { message: "What should I call you?" };
     case "timezone":
       return {
-        message: "What is your timezone? Send an IANA name such as America/Toronto, Europe/London, or Asia/Kolkata.",
+        message: "What city and country are you in? You can also send a timezone such as America/Toronto.",
       };
     case "preferences":
       return {
@@ -506,7 +506,8 @@ export async function handleOnboardingGateway(
     }
 
     case "timezone": {
-      if (!isIanaTimezone(input.text)) {
+      const timezone = resolveTimezoneInput(input.text);
+      if (!timezone) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
           message: `I could not recognize that timezone. ${promptFor(row).message}`,
@@ -516,12 +517,12 @@ export async function handleOnboardingGateway(
       }
       if (!row.appUserId) throw new Error("Onboarding user was not provisioned");
       await db.update(schema.userProfiles)
-        .set({ timezone: input.text })
+        .set({ timezone })
         .where(eq(schema.userProfiles.userId, row.appUserId));
-      row = await updateRow(input.phoneNumber, { timezone: input.text, step: "preferences" });
+      row = await updateRow(input.phoneNumber, { timezone, step: "preferences" });
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: promptFor(row).message,
+        message: `Got it — I’ll use ${timezone}.\n\n${promptFor(row).message}`,
         snapshot: rowToSnapshot(row),
       };
       return (await persistResponse(input, response)).response;

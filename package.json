@@ -24,6 +24,7 @@
     "dev": "nuxt dev",
     "eval": "eve eval",
     "eval:list": "eve eval --list",
+    "eval:memory:remote": "node scripts/run-memory-eval.mjs",
     "eval:remote": "eve eval --url https://use-memory.vercel.app --strict",
     "start": "nuxt preview",
     "test": "vitest run",

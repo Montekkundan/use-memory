@@ -117,5 +117,8 @@ Never run that command against a directory containing data you need.
 | `EVAL_BETTER_AUTH_COOKIE` | Short-lived Better Auth cookie for read-only GitHub and temporary profile-update evals. Pass the complete cookie pair and never commit it. |
 | `EVAL_IMESSAGE_PHONE_NUMBER` | Verified, fully onboarded test number that may receive the live iMessage marker. |
 | `EVAL_IMESSAGE_WEBHOOK_SECRET` | Photon signing secret used only to construct the live signed-ingress fixture. |
+| `EVAL_TARGET_URL` | Optional deployment for the isolated Mem0 eval. Defaults to production. |
 
-The profile eval restores the original name in `finally`. The GitHub eval performs read-only calls and cross-checks the latest commit against GitHub's API. Eve evals prove the agent HTTP surface; a real Messages send remains the final proof that Apple-to-Photon inbound delivery occurred.
+The profile eval restores the original name in `finally`. The GitHub eval performs read-only calls and cross-checks the latest commit against GitHub's API. `pnpm eval:memory:remote` requires `DATABASE_URL` and the production `BETTER_AUTH_SECRET` in the current shell. It creates a short-lived Better Auth test account, teaches Mem0 a unique preference, recalls it in a separate Eve session, erases that isolated namespace, and removes the test account. It never uses or clears a real user's memory. Do not commit either production value or place them in shell history.
+
+Eve evals prove the agent HTTP surface; a real Messages send remains the final proof that Apple-to-Photon inbound delivery occurred.

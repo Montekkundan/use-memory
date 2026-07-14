@@ -123,6 +123,7 @@ pnpm typecheck    # Nuxt and TypeScript checks
 pnpm build        # Production build
 pnpm eval         # Eve agent evals against a local target
 pnpm eval:remote  # Eve agent evals against production
+pnpm eval:memory:remote # Isolated cross-session Mem0 recall against production
 pnpm db:generate  # Generate PostgreSQL migrations
 pnpm db:migrate   # Apply migrations
 ```
