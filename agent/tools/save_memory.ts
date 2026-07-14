@@ -3,6 +3,7 @@ import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { MEMORY_CATEGORIES } from "../lib/memory-categories.js";
 import { saveMemoryRemote } from "../lib/memory-internal.js";
+import { sessionUserId } from "../lib/session-user.js";
 
 const updateSchema = z.object({
   category: z.enum(MEMORY_CATEGORIES).describe("Memory category to update"),
@@ -18,7 +19,7 @@ export default defineTool({
   }),
   approval: always(),
   async execute({ updates }, ctx) {
-    const userId = ctx.session.auth.current?.principalId;
+    const userId = sessionUserId(ctx.session.auth.current);
     if (!userId) {
       throw new Error("Cannot save memory without an authenticated user");
     }

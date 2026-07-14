@@ -13,6 +13,7 @@ interface PhotonEnvironment {
   SPECTRUM_PROJECT_ID?: string;
   SPECTRUM_PROJECT_SECRET?: string;
   SPECTRUM_SIGNING_SECRET?: string;
+  PHOTON_NATIVE_POLL_EVENTS_ENABLED?: string;
 }
 
 export interface PhotonConfiguration {
@@ -79,6 +80,12 @@ export function hasPhotonWebhookCredentials(config: PhotonConfiguration) {
   return hasPhotonCloudCredentials(config) && Boolean(config.webhookSecret);
 }
 
+export function hasPhotonNativePollEvents(env: PhotonEnvironment) {
+  return ["1", "true", "yes"].includes(
+    env.PHOTON_NATIVE_POLL_EVENTS_ENABLED?.trim().toLowerCase() ?? "",
+  );
+}
+
 const photonConfiguration = resolvePhotonConfiguration(process.env);
 
 export function isPhotonCloudConfigured() {
@@ -87,6 +94,10 @@ export function isPhotonCloudConfigured() {
 
 export function isPhotonWebhookConfigured() {
   return hasPhotonWebhookCredentials(photonConfiguration);
+}
+
+export function arePhotonNativePollEventsEnabled() {
+  return hasPhotonNativePollEvents(process.env);
 }
 
 /**

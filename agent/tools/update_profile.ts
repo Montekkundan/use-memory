@@ -5,6 +5,7 @@ import {
   updateProfileToolResultSchema,
 } from "../../shared/profile-schema.js";
 import { updateProfileRemote } from "../lib/profile-internal.js";
+import { sessionUserId } from "../lib/session-user.js";
 
 export default defineTool({
   description:
@@ -12,8 +13,8 @@ export default defineTool({
   inputSchema: updateProfileToolInputSchema,
   outputSchema: updateProfileToolResultSchema,
   async execute({ changes }, ctx) {
-    const userId = ctx.session.auth.current?.principalId;
-    if (!userId || userId.startsWith("eve:")) {
+    const userId = sessionUserId(ctx.session.auth.current);
+    if (!userId) {
       throw new Error("Cannot update a profile without an authenticated user");
     }
 

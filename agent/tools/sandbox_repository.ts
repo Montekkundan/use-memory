@@ -14,13 +14,14 @@ import {
   sandboxRepositoryOutputSchema,
   truncateSandboxOutput,
 } from "../lib/sandbox.js";
+import { sessionUserId } from "../lib/session-user.js";
 
 export default defineDynamic({
   events: {
     "session.started": async (_event, ctx) => {
       const auth = ctx.session.auth.current;
-      const userId = auth?.principalId;
-      if (!userId || userId.startsWith("eve:")) return {};
+      const userId = sessionUserId(auth);
+      if (!userId) return {};
       const issuer = auth.issuer ?? auth.authenticator ?? CONNECT_USER_ISSUER;
 
       return {

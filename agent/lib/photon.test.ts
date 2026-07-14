@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPhotonChannelRegistration,
   DisabledPhotonAdapter,
+  hasPhotonNativePollEvents,
   hasPhotonCloudCredentials,
   hasPhotonWebhookCredentials,
   parsePhotonOnboardingPollVote,
@@ -48,6 +49,12 @@ describe("Photon configuration", () => {
 
     expect(hasPhotonCloudCredentials(config)).toBe(true);
     expect(hasPhotonWebhookCredentials(config)).toBe(false);
+  });
+
+  it("keeps native polls opt-in until Photon cloud webhooks deliver poll votes", () => {
+    expect(hasPhotonNativePollEvents({})).toBe(false);
+    expect(hasPhotonNativePollEvents({ PHOTON_NATIVE_POLL_EVENTS_ENABLED: "true" })).toBe(true);
+    expect(hasPhotonNativePollEvents({ PHOTON_NATIVE_POLL_EVENTS_ENABLED: "1" })).toBe(true);
   });
 });
 

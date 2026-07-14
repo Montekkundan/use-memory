@@ -15,6 +15,7 @@ import type {
 import { runOnboardingGateway } from "../lib/onboarding-internal.js";
 import {
   createPhotonChannelRegistration,
+  arePhotonNativePollEventsEnabled,
   parsePhotonOnboardingPollVote,
   photonAdapter,
   photonState,
@@ -58,7 +59,7 @@ async function offerNativeChoice(
   phoneNumber: string,
   choice: OnboardingNativeChoice | undefined,
 ) {
-  if (!choice) return;
+  if (!choice || !arePhotonNativePollEventsEnabled()) return;
 
   try {
     await photonAdapter.openModal(
@@ -117,7 +118,10 @@ bot.onDirectMessage(async (thread, message) => {
 
   const onboardingPollVote = parsePhotonOnboardingPollVote(message.raw);
   if (onboardingPollVote !== undefined) {
-    if (onboardingPollVote === null) return;
+    if (onboardingPollVote === null) {
+      logEvent("warn", "photon.onboarding.poll_vote_ignored", fields);
+      return;
+    }
 
     const response = await runOnboardingGateway({
       interaction: { kind: "consent", value: onboardingPollVote },

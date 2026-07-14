@@ -91,7 +91,7 @@ function promptFor(row: OnboardingRow): { message: string; nativeChoice?: Onboar
         message: [
           "Welcome to use-memory. I can remember your preferences and use connected services on your behalf.",
           "Messages may be processed by the AI and services you choose. Continue?",
-          "Reply 1 for YES or 2 for NO. You can also answer the iMessage poll.",
+          "Reply YES or 1 to continue. Reply NO or 2 to stop.",
         ].join("\n\n"),
         nativeChoice: consentChoice(row.phoneNumber),
       };

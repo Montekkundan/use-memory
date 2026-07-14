@@ -35,6 +35,7 @@ The database stores Better Auth users and sessions, curated profiles, onboarding
 | `SPECTRUM_PROJECT_ID` | Yes | Project ID shown in the Photon/Spectrum dashboard. Alias: `IMESSAGE_PROJECT_ID`. |
 | `SPECTRUM_PROJECT_SECRET` | Yes | Project secret shown in the Photon/Spectrum dashboard. Alias: `IMESSAGE_PROJECT_SECRET`. |
 | `SPECTRUM_SIGNING_SECRET` | Yes | Signing secret shown when registering the webhook. Alias: `IMESSAGE_WEBHOOK_SECRET`. It verifies `X-Spectrum-Signature` and rejects stale requests. |
+| `PHOTON_NATIVE_POLL_EVENTS_ENABLED` | No | Experimental. Leave unset or `false` while Photon cloud webhooks only guarantee text and attachment delivery. Set to `true` only after `poll_option` deliveries are verified for the project. |
 
 Use either the three `SPECTRUM_*` names or their three `IMESSAGE_*` aliases, not both. Project ID and project secret enable outbound delivery. The signing secret additionally enables authenticated inbound webhooks.
 
@@ -45,6 +46,8 @@ https://use-memory.vercel.app/eve/v1/photon
 ```
 
 The adapter also uses the Photon API to send OTPs and connection confirmations. Do not expose the internal OTP or system routes; they require `INTERNAL_API_SECRET`.
+
+Onboarding consent always accepts `YES`/`1` and `NO`/`2`. Native polls remain opt-in because Photon documents text and attachment as the webhook payloads currently verified end to end; a poll can render in Messages without its vote reaching the webhook.
 
 The approval queue stores when Photon accepts an invitation request. Photon acceptance is not a carrier delivery receipt. Android entries are held until a separate SMS/RCS adapter is configured.
 
@@ -104,3 +107,15 @@ pnpm db:migrate
 ```
 
 Never run that command against a directory containing data you need.
+
+## Evals
+
+`pnpm eval` runs deterministic and model-backed Eve checks through the same HTTP protocol used by web chat. `pnpm eval:remote` targets production. The authenticated and live-channel cases skip unless their credentials are supplied:
+
+| Variable | Purpose |
+| --- | --- |
+| `EVAL_BETTER_AUTH_COOKIE` | Short-lived Better Auth cookie for read-only GitHub and temporary profile-update evals. Pass the complete cookie pair and never commit it. |
+| `EVAL_IMESSAGE_PHONE_NUMBER` | Verified, fully onboarded test number that may receive the live iMessage marker. |
+| `EVAL_IMESSAGE_WEBHOOK_SECRET` | Photon signing secret used only to construct the live signed-ingress fixture. |
+
+The profile eval restores the original name in `finally`. The GitHub eval performs read-only calls and cross-checks the latest commit against GitHub's API. Eve evals prove the agent HTTP surface; a real Messages send remains the final proof that Apple-to-Photon inbound delivery occurred.

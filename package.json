@@ -22,9 +22,12 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "eval": "eve eval",
+    "eval:list": "eve eval --list",
+    "eval:remote": "eve eval --url https://use-memory.vercel.app --strict",
     "start": "nuxt preview",
     "test": "vitest run",
-    "typecheck": "nuxt typecheck",
+    "typecheck": "nuxt typecheck && tsc -p evals/tsconfig.json",
     "db:generate": "nuxt-db generate",
     "db:migrate": "nuxt-db migrate"
   },

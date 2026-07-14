@@ -35,7 +35,7 @@ describe("update_profile tool", () => {
       },
       {
         session: {
-          auth: { current: { principalId: "user-1" } },
+          auth: { current: { principalId: "user-1", principalType: "user" } },
         },
       } as never,
     );
@@ -64,7 +64,7 @@ describe("update_profile tool", () => {
 
     await expect(updateProfileTool.execute!(
       { reason: "Update", changes: { name: "Monte" } },
-      { session: { auth: { current: { principalId: "eve:app" } } } } as never,
+      { session: { auth: { current: { principalId: "eve:app", principalType: "app" } } } } as never,
     )).rejects.toThrow("Cannot update a profile without an authenticated user");
     expect(mocks.updateProfileRemote).not.toHaveBeenCalled();
   });

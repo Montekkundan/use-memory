@@ -5,21 +5,18 @@ import {
   opaqueReference,
 } from "../../shared/observability.js";
 import { stageAutomaticMemoryRemote } from "../lib/mem0-internal.js";
+import { sessionUserId } from "../lib/session-user.js";
 
 interface TurnPair {
   userMessage?: string;
   assistantMessage?: string;
+  staged?: boolean;
 }
 
 const activeTurns = new Map<string, TurnPair>();
 
 function turnKey(sessionId: string, turnId: string) {
   return `${sessionId}\n${turnId}`;
-}
-
-function authenticatedUserId(ctx: { session: { auth: { current: { principalId: string } | null } } }) {
-  const userId = ctx.session.auth.current?.principalId;
-  return userId && !userId.startsWith("eve:") ? userId : undefined;
 }
 
 async function stageSafely(input: Parameters<typeof stageAutomaticMemoryRemote>[0]) {
@@ -36,6 +33,7 @@ async function stageSafely(input: Parameters<typeof stageAutomaticMemoryRemote>[
         delivered: result.delivery?.delivered,
       });
     }
+    return true;
   }
   catch (error) {
     logEvent("warn", "mem0.turn.stage_deferred", {
@@ -44,13 +42,14 @@ async function stageSafely(input: Parameters<typeof stageAutomaticMemoryRemote>[
       turnRef: opaqueReference(input.turnId),
       errorKind: errorKind(error),
     });
+    return false;
   }
 }
 
 export default defineHook({
   events: {
     async "message.received"(event, ctx) {
-      const userId = authenticatedUserId(ctx);
+      const userId = sessionUserId(ctx.session.auth.current);
       if (!userId) return;
 
       const key = turnKey(ctx.session.id, event.data.turnId);
@@ -67,7 +66,7 @@ export default defineHook({
     },
     async "message.completed"(event, ctx) {
       if (event.data.finishReason === "tool-calls" || !event.data.message) return;
-      const userId = authenticatedUserId(ctx);
+      const userId = sessionUserId(ctx.session.auth.current);
       if (!userId) return;
 
       const key = turnKey(ctx.session.id, event.data.turnId);
@@ -75,7 +74,7 @@ export default defineHook({
       pair.assistantMessage = event.data.message;
       activeTurns.set(key, pair);
 
-      await stageSafely({
+      pair.staged = await stageSafely({
         userId,
         sessionId: ctx.session.id,
         turnId: event.data.turnId,
@@ -88,8 +87,8 @@ export default defineHook({
       const pair = activeTurns.get(key);
       activeTurns.delete(key);
 
-      const userId = authenticatedUserId(ctx);
-      if (!userId || !pair?.userMessage || !pair.assistantMessage) return;
+      const userId = sessionUserId(ctx.session.auth.current);
+      if (!userId || !pair?.userMessage || !pair.assistantMessage || pair.staged) return;
       await stageSafely({
         userId,
         sessionId: ctx.session.id,

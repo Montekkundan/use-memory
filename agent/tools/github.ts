@@ -2,6 +2,7 @@ import { buildEveToolMap } from "@github-tools/sdk/eve";
 import { getToken, UserAuthorizationRequiredError } from "@vercel/connect";
 import { defineDynamic } from "eve/tools";
 import { CONNECT_USER_ISSUER, GITHUB_CONNECTOR } from "../../shared/connect.js";
+import { sessionUserId } from "../lib/session-user.js";
 
 const IMESSAGE_PUBLISH_APPROVALS = {
   createBranch: false,
@@ -19,8 +20,8 @@ export default defineDynamic({
   events: {
     "session.started": async (_event, ctx) => {
       const auth = ctx.session.auth.current;
-      const userId = auth?.principalId;
-      if (!userId || userId.startsWith("eve:")) {
+      const userId = sessionUserId(auth);
+      if (!userId) {
         return {};
       }
 

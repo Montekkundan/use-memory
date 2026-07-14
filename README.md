@@ -8,7 +8,7 @@ A personal agent you can text from iMessage. Photon Cloud delivers messages to a
 - Protected approval queue that can invite iPhone users through Photon
 - Photon Cloud iMessage DMs through Eve's Chat SDK channel
 - Phone OTP sign-in, recovery email, and one-time browser links with Better Auth
-- Resumable chat-only onboarding with polls and numbered multiselect replies
+- Resumable chat-only onboarding with text choices and numbered multiselect replies
 - Consent-gated Mem0 recall and automatic memory writes per Better Auth user
 - Neon Postgres for auth, profiles, onboarding, and durable memory jobs
 - Redis for Chat SDK state, webhook deduplication, and short recall caching
@@ -73,7 +73,7 @@ Public Sign in with Vercel is identity-only for this product today. Vercel resou
 2. An administrator signs in and grants access at `/admin`.
 3. Photon accepts an invitation addressed to that number. Save the sending number as **Use Memory**.
 4. Reply `START`, then reply with the six-digit verification code.
-5. Complete consent, name, timezone, preferences, interests, and connector choices in the conversation.
+5. Reply `YES` or `1` to consent, then complete name, timezone, preferences, interests, and connector choices in the conversation.
 6. Open the short-lived GitHub link when offered.
 7. Keep texting the same contact. Later conversations recall only your verified user namespace.
 
@@ -109,7 +109,7 @@ Curated profile memory remains pinned context you can edit directly. Automatic M
 
 ## iMessage limitations
 
-- Photon polls support single choice, not arbitrary multiselect. Onboarding accepts replies such as `1,3,4` as a fallback.
+- Photon cloud webhooks currently guarantee text and attachment events, not poll votes. Consent uses `YES`/`1` and `NO`/`2`; onboarding accepts replies such as `1,3,4` for multiselect questions.
 - Responses are sent when complete; iMessage does not receive token-by-token streaming.
 - Inbound voice notes currently expose metadata but not reliable downloadable audio bytes through the adapter, so the agent asks for text.
 - Typing, reactions, polls, files, read state, and outbound voice depend on the provisioned Photon Cloud plan and should be verified on the live line.
@@ -121,6 +121,8 @@ Curated profile memory remains pinned context you can edit directly. Automatic M
 pnpm test         # Vitest unit tests
 pnpm typecheck    # Nuxt and TypeScript checks
 pnpm build        # Production build
+pnpm eval         # Eve agent evals against a local target
+pnpm eval:remote  # Eve agent evals against production
 pnpm db:generate  # Generate PostgreSQL migrations
 pnpm db:migrate   # Apply migrations
 ```

@@ -7,6 +7,7 @@ import {
   fetchAutomaticRecall,
   recallQueryFromMessages,
 } from "./lib/mem0-internal.js";
+import { sessionUserId } from "./lib/session-user.js";
 
 const IMESSAGE_INSTRUCTIONS = `
 
@@ -28,8 +29,8 @@ function instructionsForChannel(kind: string | undefined, base: string) {
 export default defineDynamic({
   events: {
     "session.started": async (_event, ctx: DynamicResolveContext) => {
-      const userId = ctx.session.auth.current?.principalId;
-      if (!userId || userId.startsWith("eve:")) {
+      const userId = sessionUserId(ctx.session.auth.current);
+      if (!userId) {
         return defineInstructions({
           markdown: instructionsForChannel(ctx.channel.kind, BASE_INSTRUCTIONS),
         });
@@ -51,8 +52,8 @@ export default defineDynamic({
       });
     },
     "turn.started": async (_event, ctx: DynamicResolveContext) => {
-      const userId = ctx.session.auth.current?.principalId;
-      if (!userId || userId.startsWith("eve:")) {
+      const userId = sessionUserId(ctx.session.auth.current);
+      if (!userId) {
         return null;
       }
 

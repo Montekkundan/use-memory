@@ -32,17 +32,7 @@ export interface OnboardingAttachmentInput {
   type: "audio" | "file" | "image" | "video";
 }
 
-export interface OnboardingGatewayRequest {
-  attachments?: OnboardingAttachmentInput[];
-  interaction?: {
-    kind: "consent";
-    value: "yes" | "no";
-  };
-  messageId?: string;
-  phoneNumber: string;
-  text: string;
-  threadId: string;
-}
+export type { OnboardingGatewayRequest } from "../onboarding-gateway-schema.js";
 
 export interface OnboardingNativeChoice {
   callbackId: "use-memory-onboarding-consent";
