@@ -79,23 +79,17 @@ export default defineEval({
       );
 
       const teach = t.newSession();
-      let taught = await teach.send({
+      const taught = await teach.send({
         headers,
         message: [
           `My preferred imaginary flower for future examples is ${marker}.`,
           "Do not call save_memory or any other tool; just acknowledge this sentence briefly.",
         ].join(" "),
       });
-      if (taught.status === "waiting") {
-        teach.requireInputRequest({
-          toolName: "save_memory",
-          optionIds: ["approve", "deny"],
-        });
-        taught = await teach.respondAll("deny");
-      }
       taught.expectOk();
       teach.succeeded();
       teach.noFailedActions();
+      teach.notCalledTool("save_memory");
 
       let indexed = false;
       for (let attempt = 1; attempt <= 24; attempt += 1) {

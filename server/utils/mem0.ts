@@ -4,6 +4,7 @@ import { errorKind, logEvent, opaqueReference } from "#shared/observability";
 import {
   addMem0Turn,
   clearMem0RecallCache,
+  clearRecentMem0Turns,
   deleteAllMem0Memories,
   deleteMem0Memory,
   getMem0Memory,
@@ -70,6 +71,7 @@ export async function setAutomaticMemoryConsent(userId: string, enabled: boolean
         ),
       ));
     await clearMem0RecallCache(userId);
+    await clearRecentMem0Turns(userId);
   }
 
   return getAutomaticMemorySettings(userId);
@@ -278,13 +280,40 @@ export async function retryPendingAutomaticMemoryTurns(userId: string, limit = 3
 }
 
 export async function recallAutomaticMemories(userId: string, query: string, limit = 8) {
+  const startedAt = Date.now();
+  const fields = {
+    userRef: opaqueReference(userId),
+    queryRef: opaqueReference(query.trim().toLocaleLowerCase()),
+  };
   const settings = await getAutomaticMemorySettings(userId);
   if (!settings.enabled) {
+    logEvent("info", "mem0.recall.completed", {
+      ...fields,
+      resultCount: 0,
+      reason: "consent_required",
+      durationMs: Date.now() - startedAt,
+    });
     return [];
   }
 
-  void retryPendingAutomaticMemoryTurns(userId, 2).catch(() => undefined);
-  return searchMem0(userId, query, limit);
+  await retryPendingAutomaticMemoryTurns(userId, 2).catch(() => undefined);
+  try {
+    const memories = await searchMem0(userId, query, limit, { includeRecent: true });
+    logEvent("info", "mem0.recall.completed", {
+      ...fields,
+      resultCount: memories.length,
+      durationMs: Date.now() - startedAt,
+    });
+    return memories;
+  }
+  catch (error) {
+    logEvent("error", "mem0.recall.failed", {
+      ...fields,
+      errorKind: errorKind(error),
+      durationMs: Date.now() - startedAt,
+    });
+    throw error;
+  }
 }
 
 export async function searchAutomaticMemories(userId: string, query: string, limit = 8) {
@@ -298,6 +327,7 @@ export async function deleteAutomaticMemory(userId: string, memoryId: string) {
   }
   await deleteMem0Memory(memoryId);
   await clearMem0RecallCache(userId);
+  await clearRecentMem0Turns(userId);
   return true;
 }
 
@@ -306,4 +336,5 @@ export async function forgetAllAutomaticMemories(userId: string) {
   await db.delete(schema.mem0TurnStages)
     .where(eq(schema.mem0TurnStages.userId, userId));
   await clearMem0RecallCache(userId);
+  await clearRecentMem0Turns(userId);
 }

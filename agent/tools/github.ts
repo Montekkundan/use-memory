@@ -1,6 +1,11 @@
-import { getToken, UserAuthorizationRequiredError } from "@vercel/connect";
+import {
+  getToken,
+  NoValidTokenError,
+  UserAuthorizationRequiredError,
+} from "@vercel/connect";
 import { defineDynamic } from "eve/tools";
-import { CONNECT_USER_ISSUER, GITHUB_CONNECTOR } from "../../shared/connect.js";
+import { connectUserSubjects, GITHUB_CONNECTOR } from "../../shared/connect.js";
+import { errorKind, logEvent, opaqueReference } from "../../shared/observability.js";
 import {
   DEFAULT_ACTION_PREFERENCES,
   type ActionPreferences,
@@ -26,36 +31,74 @@ export function githubApprovalForChannel(
 
 export default defineDynamic({
   events: {
-    "session.started": async (_event, ctx) => {
+    "turn.started": async (_event, ctx) => {
       const auth = ctx.session.auth.current;
       const userId = sessionUserId(auth);
       if (!userId) {
         return {};
       }
 
+      const fields = {
+        userRef: opaqueReference(userId),
+        channelKind: ctx.channel.kind ?? "unknown",
+      };
+
       try {
+        let token: string | undefined;
+        let lastMissingGrant: unknown;
+        for (const subject of connectUserSubjects(
+          userId,
+          auth.issuer ?? auth.authenticator,
+        )) {
+          try {
+            token = await getToken(GITHUB_CONNECTOR, {
+              subject,
+              scopes: ["repo"],
+            }, { forceRefresh: true });
+            break;
+          }
+          catch (error) {
+            if (
+              error instanceof UserAuthorizationRequiredError
+              || error instanceof NoValidTokenError
+            ) {
+              lastMissingGrant = error;
+              continue;
+            }
+            throw error;
+          }
+        }
+
+        if (!token) {
+          logEvent("info", "github.tools.resolved", {
+            ...fields,
+            connected: false,
+            reason: lastMissingGrant ? "authorization_required" : "token_unavailable",
+          });
+          return {};
+        }
+
         const context = await fetchUserContext(userId);
-        const token = await getToken(GITHUB_CONNECTOR, {
-          subject: {
-            type: "user",
-            id: userId,
-            issuer: auth.issuer ?? auth.authenticator ?? CONNECT_USER_ISSUER,
-          },
-          scopes: ["repo"],
-        });
-        return buildBundledEveGithubToolMap({
+        const tools = buildBundledEveGithubToolMap({
           token,
           requireApproval: githubApprovalForChannel(
             ctx.channel.kind,
             context?.profile.actionPreferences,
           ),
         });
+        logEvent("info", "github.tools.resolved", {
+          ...fields,
+          connected: true,
+          toolCount: Object.keys(tools).length,
+        });
+        return tools;
       }
       catch (error) {
-        if (error instanceof UserAuthorizationRequiredError) {
-          return {};
-        }
-        throw error;
+        logEvent("error", "github.tools.resolve_failed", {
+          ...fields,
+          errorKind: errorKind(error),
+        });
+        return {};
       }
     },
   },

@@ -16,11 +16,18 @@ export interface Mem0Memory {
 }
 
 const RECALL_CACHE_TTL_SECONDS = 20;
+const RECENT_TURN_TTL_SECONDS = 10 * 60;
+const RECENT_TURN_LIMIT = 2;
 const MAX_LOCAL_CACHE_ENTRIES = 250;
 export const MEM0_AGENT_ID = "use-memory";
 export const MEM0_APP_ID = "use-memory";
+const MEM0_SOURCE = "automatic_chat";
 
 const localRecallCache = new Map<string, { expiresAt: number; memories: Mem0Memory[] }>();
+const localRecentTurnCache = new Map<string, {
+  expiresAt: number;
+  turns: RecentMem0Turn[];
+}>();
 let singletonClient: MemoryClient | undefined;
 let singletonClientKey = "";
 let singletonRedis: Redis | null | undefined;
@@ -30,6 +37,13 @@ export class Mem0ConfigurationError extends Error {
     super(message);
     this.name = "Mem0ConfigurationError";
   }
+}
+
+interface RecentMem0Turn {
+  id: string;
+  memory: string;
+  userId: string;
+  createdAt: string;
 }
 
 function getMem0Client() {
@@ -118,6 +132,10 @@ async function getCachedRecall(userId: string, query: string, limit: number) {
 }
 
 async function setCachedRecall(userId: string, query: string, limit: number, memories: Mem0Memory[]) {
+  if (!memories.length) {
+    return;
+  }
+
   const key = await recallCacheKey(userId, query, limit);
   const redis = getRedis();
   if (redis) {
@@ -143,6 +161,93 @@ async function setCachedRecall(userId: string, query: string, limit: number, mem
     expiresAt: Date.now() + RECALL_CACHE_TTL_SECONDS * 1_000,
     memories,
   });
+}
+
+function recentTurnKey(userId: string) {
+  return `mem0:recent-turns:${digest(userId)}`;
+}
+
+async function getRecentMem0Turns(userId: string) {
+  const key = recentTurnKey(userId);
+  const redis = getRedis();
+  if (redis) {
+    try {
+      return await redis.lrange<RecentMem0Turn>(key, 0, RECENT_TURN_LIMIT - 1);
+    }
+    catch {
+      return [];
+    }
+  }
+
+  if (!isLocalDevelopment()) {
+    return [];
+  }
+  const cached = localRecentTurnCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    localRecentTurnCache.delete(key);
+    return [];
+  }
+  return cached.turns;
+}
+
+async function storeRecentMem0Turn(turn: RecentMem0Turn) {
+  const key = recentTurnKey(turn.userId);
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.pipeline()
+        .lpush(key, turn)
+        .ltrim(key, 0, RECENT_TURN_LIMIT - 1)
+        .expire(key, RECENT_TURN_TTL_SECONDS)
+        .exec();
+    }
+    catch {
+      // Mem0 remains the durable source if the short read-through buffer is unavailable.
+    }
+    return;
+  }
+
+  if (!isLocalDevelopment()) {
+    return;
+  }
+  const current = localRecentTurnCache.get(key)?.turns ?? [];
+  localRecentTurnCache.set(key, {
+    expiresAt: Date.now() + RECENT_TURN_TTL_SECONDS * 1_000,
+    turns: [turn, ...current.filter(item => item.id !== turn.id)].slice(0, RECENT_TURN_LIMIT),
+  });
+}
+
+export async function clearRecentMem0Turns(userId: string) {
+  const key = recentTurnKey(userId);
+  localRecentTurnCache.delete(key);
+  const redis = getRedis();
+  if (redis) {
+    await redis.del(key);
+  }
+}
+
+function mergeRecentMem0Turns(
+  recentTurns: RecentMem0Turn[],
+  memories: Mem0Memory[],
+  limit: number,
+) {
+  const merged: Mem0Memory[] = [];
+  const seen = new Set<string>();
+  for (const memory of [
+    ...recentTurns.map(turn => ({
+      ...turn,
+      categories: ["recent_conversation"],
+      metadata: { source: "recent_turn_buffer" },
+    } satisfies Mem0Memory)),
+    ...memories,
+  ]) {
+    const key = memory.memory.trim().toLocaleLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(memory);
+    if (merged.length >= limit) break;
+  }
+  return merged;
 }
 
 export async function clearMem0RecallCache(userId: string) {
@@ -189,19 +294,39 @@ function normalizeMemory(memory: Memory): Mem0Memory | undefined {
   };
 }
 
-export async function searchMem0(userId: string, query: string, limit = 8) {
+function isUseMemoryRecord(memory: Mem0Memory, userId: string) {
+  if (memory.userId !== userId) {
+    return false;
+  }
+
+  const source = memory.metadata?.source;
+  const appId = memory.metadata?.app_id;
+  const agentId = memory.metadata?.agent_id;
+  return source === MEM0_SOURCE
+    && (appId === undefined || appId === MEM0_APP_ID)
+    && (agentId === undefined || agentId === MEM0_AGENT_ID);
+}
+
+export async function searchMem0(
+  userId: string,
+  query: string,
+  limit = 8,
+  options: { includeRecent?: boolean } = {},
+) {
   const normalizedLimit = Math.max(1, Math.min(8, limit));
-  const cached = await getCachedRecall(userId, query, normalizedLimit);
+  const [cached, recentTurns] = await Promise.all([
+    getCachedRecall(userId, query, normalizedLimit),
+    options.includeRecent ? getRecentMem0Turns(userId) : Promise.resolve([]),
+  ]);
   if (cached) {
-    return cached;
+    return mergeRecentMem0Turns(recentTurns, cached, normalizedLimit);
   }
 
   const response = await getMem0Client().search(query, {
     filters: {
       AND: [
         { user_id: userId },
-        { agent_id: MEM0_AGENT_ID },
-        { app_id: MEM0_APP_ID },
+        { metadata: { source: MEM0_SOURCE } },
       ],
     },
     topK: normalizedLimit,
@@ -211,10 +336,11 @@ export async function searchMem0(userId: string, query: string, limit = 8) {
   const memories = response.results
     .map(normalizeMemory)
     .filter((memory): memory is Mem0Memory => Boolean(memory))
+    .filter(memory => isUseMemoryRecord(memory, userId))
     .slice(0, normalizedLimit);
 
   await setCachedRecall(userId, query, normalizedLimit, memories);
-  return memories;
+  return mergeRecentMem0Turns(recentTurns, memories, normalizedLimit);
 }
 
 export async function addMem0Turn(input: {
@@ -235,11 +361,19 @@ export async function addMem0Turn(input: {
     runId: input.sessionId,
     infer: true,
     metadata: {
-      source: "automatic_chat",
+      source: MEM0_SOURCE,
+      app_id: MEM0_APP_ID,
+      agent_id: MEM0_AGENT_ID,
       stage_id: input.id,
       session_id: input.sessionId,
       turn_id: input.turnId,
     },
+  });
+  await storeRecentMem0Turn({
+    id: `recent:${input.id}`,
+    memory: input.userMessage.slice(0, 2_000),
+    userId: input.userId,
+    createdAt: new Date().toISOString(),
   });
   await clearMem0RecallCache(input.userId);
 }
@@ -250,9 +384,7 @@ export async function getMem0Memory(memoryId: string) {
 }
 
 export function isOwnedMem0Memory(memory: Mem0Memory | undefined, userId: string) {
-  return memory?.userId === userId
-    && memory.agentId === MEM0_AGENT_ID
-    && memory.appId === MEM0_APP_ID;
+  return Boolean(memory && isUseMemoryRecord(memory, userId));
 }
 
 export async function deleteMem0Memory(memoryId: string) {

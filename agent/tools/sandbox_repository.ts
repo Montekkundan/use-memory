@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
-import { getToken, UserAuthorizationRequiredError } from "@vercel/connect";
+import {
+  getToken,
+  NoValidTokenError,
+  UserAuthorizationRequiredError,
+} from "@vercel/connect";
 import { Sandbox } from "@vercel/sandbox";
 import { defineDynamic, defineTool } from "eve/tools";
-import { CONNECT_USER_ISSUER, GITHUB_CONNECTOR } from "../../shared/connect.js";
+import { connectUserSubjects, GITHUB_CONNECTOR } from "../../shared/connect.js";
 import { errorKind, logEvent, opaqueReference } from "../../shared/observability.js";
 import {
   redactSandboxOutput,
@@ -18,11 +22,11 @@ import { sessionUserId } from "../lib/session-user.js";
 
 export default defineDynamic({
   events: {
-    "session.started": async (_event, ctx) => {
+    "turn.started": async (_event, ctx) => {
       const auth = ctx.session.auth.current;
       const userId = sessionUserId(auth);
       if (!userId) return {};
-      const issuer = auth.issuer ?? auth.authenticator ?? CONNECT_USER_ISSUER;
+      const preferredIssuer = auth.issuer ?? auth.authenticator;
 
       return {
         sandbox_repository: defineTool({
@@ -40,14 +44,33 @@ export default defineDynamic({
             let token = "";
 
             try {
-              token = await getToken(GITHUB_CONNECTOR, {
-                subject: { type: "user", id: userId, issuer },
-                authorizationDetails: [{
-                  type: "github_app_installation",
-                  repositories: [repository],
-                  permissions: ["contents:read"],
-                }],
-              });
+              let lastMissingGrant: unknown;
+              for (const subject of connectUserSubjects(userId, preferredIssuer)) {
+                try {
+                  token = await getToken(GITHUB_CONNECTOR, {
+                    subject,
+                    authorizationDetails: [{
+                      type: "github_app_installation",
+                      repositories: [repository],
+                      permissions: ["contents:read"],
+                    }],
+                  }, { forceRefresh: true });
+                  break;
+                }
+                catch (error) {
+                  if (
+                    error instanceof UserAuthorizationRequiredError
+                    || error instanceof NoValidTokenError
+                  ) {
+                    lastMissingGrant = error;
+                    continue;
+                  }
+                  throw error;
+                }
+              }
+              if (!token) {
+                throw lastMissingGrant ?? new Error("GitHub token is unavailable");
+              }
 
               sandbox = await Sandbox.create({
                 runtime: SANDBOX_RUNTIME,
@@ -139,7 +162,10 @@ export default defineDynamic({
                 errorKind: errorKind(error),
                 durationMs: Date.now() - startedAt,
               });
-              if (error instanceof UserAuthorizationRequiredError) {
+              if (
+                error instanceof UserAuthorizationRequiredError
+                || error instanceof NoValidTokenError
+              ) {
                 throw new Error("Connect GitHub before starting a coding sandbox");
               }
               throw error;

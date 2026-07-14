@@ -1,5 +1,5 @@
 import type { ConnectorDef, ConnectorStatus } from "#shared/types/connector";
-import { CONNECT_USER_ISSUER } from "#shared/connect";
+import { connectUserSubjects } from "#shared/connect";
 import type { ConnectTokenSubject } from "@vercel/connect";
 import {
   ConnectError,
@@ -11,20 +11,6 @@ import {
   startAuthorization,
   UserAuthorizationRequiredError,
 } from "@vercel/connect";
-
-function userSubjects(userId: string): ConnectTokenSubject[] {
-  const subjects: ConnectTokenSubject[] = [
-    { type: "user", id: userId, issuer: CONNECT_USER_ISSUER },
-    { type: "user", id: userId },
-  ];
-
-  const authUrl = process.env.BETTER_AUTH_URL?.trim();
-  if (authUrl) {
-    subjects.push({ type: "user", id: userId, issuer: authUrl });
-  }
-
-  return subjects;
-}
 
 function tokenParams(
   def: ConnectorDef,
@@ -116,7 +102,7 @@ async function withUserTokenResponse(
 ) {
   let lastError: unknown;
 
-  for (const subject of userSubjects(userId)) {
+  for (const subject of connectUserSubjects(userId)) {
     try {
       return await getTokenResponse(
         def.connector,
@@ -165,7 +151,7 @@ export async function startConnectFlow(
 ) {
   return startAuthorization(
     def.connector,
-    tokenParams(def, userSubjects(userId)[0]!, undefined),
+    tokenParams(def, connectUserSubjects(userId)[0]!, undefined),
     { callbackUrl },
   );
 }
@@ -193,7 +179,7 @@ export async function revokeConnection(
 ): Promise<void> {
   let lastError: unknown;
 
-  for (const subject of userSubjects(userId)) {
+  for (const subject of connectUserSubjects(userId)) {
     try {
       await revokeToken(def.connector, {
         subject,
