@@ -24,6 +24,7 @@ import {
   interpretOnboardingMessage,
   type OnboardingInterpretation,
 } from "~~/server/utils/onboarding-agent";
+import { stageOnboardingMemory } from "~~/server/utils/onboarding-memory";
 import { updatePersonalityForUser } from "~~/server/utils/personality";
 
 type OnboardingRow = typeof imessageOnboardingSessions.$inferSelect;
@@ -264,6 +265,16 @@ async function persistResponse(
     lastInboundMessageId: input.messageId ?? null,
     lastResponseJson: JSON.stringify(response),
   });
+  if (response.kind !== "ready") {
+    await stageOnboardingMemory({
+      appUserId: row.appUserId,
+      consented: row.consent === true,
+      messageId: input.messageId,
+      phoneNumber: input.phoneNumber,
+      userMessage: input.text,
+      assistantMessage: response.message,
+    });
+  }
   return { row, response };
 }
 

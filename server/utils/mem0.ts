@@ -239,6 +239,7 @@ export async function retryPendingAutomaticMemoryTurns(userId: string, limit = 3
         turnId: claimed.turnId,
         userMessage: claimed.userMessage,
         assistantMessage: claimed.assistantMessage,
+        createdAt: claimed.createdAt,
       });
       await db.update(schema.mem0TurnStages)
         .set({

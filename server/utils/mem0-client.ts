@@ -22,6 +22,11 @@ const MAX_LOCAL_CACHE_ENTRIES = 250;
 export const MEM0_AGENT_ID = "use-memory";
 export const MEM0_APP_ID = "use-memory";
 const MEM0_SOURCE = "automatic_chat";
+const USER_MEMORY_EXTRACTION_INSTRUCTIONS = `Only extract facts explicitly stated by the user.
+Ignore assistant messages, assistant limitations, tool output, questions, requests for information, guesses, and unconfirmed suggestions.
+Keep useful personal facts, preferences, relationships, plans, commitments, dates, and times.
+Preserve names and temporal details exactly as the user stated them. Do not replace a stated date or time with "unknown".
+If the message contains no user fact worth remembering, extract no memory.`;
 
 const localRecallCache = new Map<string, { expiresAt: number; memories: Mem0Memory[] }>();
 const localRecentTurnCache = new Map<string, {
@@ -350,16 +355,17 @@ export async function addMem0Turn(input: {
   turnId: string;
   userMessage: string;
   assistantMessage: string;
+  createdAt?: Date;
 }) {
   await getMem0Client().add([
     { role: "user", content: input.userMessage },
-    { role: "assistant", content: input.assistantMessage },
   ], {
     userId: input.userId,
     agentId: MEM0_AGENT_ID,
     appId: MEM0_APP_ID,
     runId: input.sessionId,
     infer: true,
+    customInstructions: USER_MEMORY_EXTRACTION_INSTRUCTIONS,
     metadata: {
       source: MEM0_SOURCE,
       app_id: MEM0_APP_ID,
@@ -367,13 +373,15 @@ export async function addMem0Turn(input: {
       stage_id: input.id,
       session_id: input.sessionId,
       turn_id: input.turnId,
+      ...(input.createdAt ? { message_created_at: input.createdAt.toISOString() } : {}),
     },
   });
+  const createdAt = input.createdAt?.toISOString() ?? new Date().toISOString();
   await storeRecentMem0Turn({
     id: `recent:${input.id}`,
     memory: input.userMessage.slice(0, 2_000),
     userId: input.userId,
-    createdAt: new Date().toISOString(),
+    createdAt,
   });
   await clearMem0RecallCache(input.userId);
 }

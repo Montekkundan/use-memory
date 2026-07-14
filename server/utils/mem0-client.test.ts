@@ -55,11 +55,15 @@ describe("Mem0 Cloud namespace", () => {
       assistantMessage: "Understood",
     });
 
-    expect(sdk.add).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({
+    expect(sdk.add).toHaveBeenCalledWith([
+      { role: "user", content: "I like concise answers" },
+    ], expect.objectContaining({
       userId: "user-123",
       agentId: "use-memory",
       appId: "use-memory",
       runId: "session-1",
+      infer: true,
+      customInstructions: expect.stringContaining("Only extract facts explicitly stated by the user"),
       metadata: expect.objectContaining({
         source: "automatic_chat",
         app_id: "use-memory",
