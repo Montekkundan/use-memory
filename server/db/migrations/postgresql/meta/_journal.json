@@ -22,6 +22,13 @@
       "when": 1783974826577,
       "tag": "0002_dear_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784028712030,
+      "tag": "0003_secret_silvermane",
+      "breakpoints": true
     }
   ]
 }

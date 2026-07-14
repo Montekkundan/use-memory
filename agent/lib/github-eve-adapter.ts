@@ -30,6 +30,8 @@ type GithubSdkTool = {
   }) => unknown;
 };
 
+type DefaultBranchResolver = (owner: string, repo: string) => Promise<string>;
+
 const WRITE_TOOL_NAMES = new Set<string>(Object.values(GITHUB_WRITE_TOOLS));
 
 function approvalForTool(name: string, config: ApprovalConfig | undefined) {
@@ -60,6 +62,7 @@ function approvalForTool(name: string, config: ApprovalConfig | undefined) {
  */
 export function buildBundledEveGithubToolMap(options: {
   requireApproval?: ApprovalConfig;
+  resolveDefaultBranch?: DefaultBranchResolver;
   token: string;
 }) {
   const githubTools = createGithubTools({
@@ -80,6 +83,40 @@ export function buildBundledEveGithubToolMap(options: {
       description: tool.description,
       inputSchema: tool.inputSchema,
       async execute(input, ctx) {
+        if (name === "createOrUpdateFile") {
+          const owner = typeof input.owner === "string" ? input.owner.trim() : "";
+          const repo = typeof input.repo === "string" ? input.repo.trim() : "";
+          const branch = typeof input.branch === "string" ? input.branch.trim() : "";
+          if (!owner || !repo || !branch) {
+            throw new Error("Publishing a file requires a repository and explicit non-default branch");
+          }
+
+          const resolveDefaultBranch = options.resolveDefaultBranch
+            ?? (async (targetOwner: string, targetRepo: string) => {
+              const response = await fetch(
+                `https://api.github.com/repos/${encodeURIComponent(targetOwner)}/${encodeURIComponent(targetRepo)}`,
+                {
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                    Authorization: `Bearer ${options.token}`,
+                    "X-GitHub-Api-Version": "2022-11-28",
+                  },
+                },
+              );
+              if (!response.ok) {
+                throw new Error(`Could not verify the repository default branch (${response.status})`);
+              }
+              const repository = await response.json() as { default_branch?: unknown };
+              if (typeof repository.default_branch !== "string" || !repository.default_branch) {
+                throw new Error("Could not verify the repository default branch");
+              }
+              return repository.default_branch;
+            });
+          const defaultBranch = await resolveDefaultBranch(owner, repo);
+          if (branch === defaultBranch) {
+            throw new Error(`Direct writes to the default branch (${defaultBranch}) are not allowed`);
+          }
+        }
         return await tool.execute?.(input, {
           abortSignal: ctx.abortSignal,
           context: undefined,

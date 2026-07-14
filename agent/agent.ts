@@ -1,7 +1,8 @@
 import { defineAgent } from "eve";
+import { USE_MEMORY_MODEL } from "../shared/model.js";
 
 export default defineAgent({
-  model: "anthropic/claude-sonnet-4.6",
+  model: USE_MEMORY_MODEL,
   modelOptions: {
     providerOptions: {
       anthropic: {

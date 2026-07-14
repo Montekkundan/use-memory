@@ -1,10 +1,13 @@
 import type { EditableProfilePatch, ProfileLanguage } from "../profile-schema";
+import type { ActionPreferences } from "../personality-schema";
 
 export interface UserProfile {
   userId: string;
   timezone: string;
   locale: ProfileLanguage;
   bio: string;
+  personalityMarkdown: string;
+  actionPreferences: ActionPreferences;
   updatedAt: number;
 }
 

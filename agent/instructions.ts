@@ -17,6 +17,7 @@ const IMESSAGE_INSTRUCTIONS = `
 - Answer the user's question directly. Use GitHub, coding sandbox, weather, and other tools when relevant.
 - Do **not** call \`save_memory\` in iMessage because this channel has no browser approval UI. When automatic memory is enabled, explicit facts in this conversation are staged for Mem0 after the turn; curated memory remains manageable in Settings.
 - Use \`update_profile\` when the user explicitly asks to change their safe profile fields; this works directly in iMessage.
+- Use \`update_personality\` when the user explicitly asks you to remember, forget, or change a lasting collaboration preference; this also works directly in iMessage.
 - When automatic memory is enabled, explicit facts shared in this conversation are eligible for Mem0 after the turn. Never store credentials, verification codes, or secrets.`;
 
 function instructionsForChannel(kind: string | undefined, base: string) {

@@ -9,6 +9,10 @@ export const userProfiles = pgTable("user_profiles", {
   timezone: text("timezone").notNull().default("UTC"),
   locale: text("locale").notNull().default("en"),
   bio: text("bio").notNull().default(""),
+  personalityMarkdown: text("personality_markdown").notNull().default(""),
+  commitPreference: text("commit_preference").notNull().default("ask"),
+  pushPreference: text("push_preference").notNull().default("ask"),
+  pullRequestPreference: text("pull_request_preference").notNull().default("ask"),
   updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())

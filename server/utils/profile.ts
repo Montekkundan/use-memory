@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 import { profileLanguageSchema, profileTableFields } from "#shared/profile-schema";
+import {
+  actionPreferenceSchema,
+  DEFAULT_ACTION_PREFERENCES,
+} from "#shared/personality-schema";
 import type { UserProfile, UserProfilePatch, UserProfileWithUser } from "#shared/types/profile";
 import { getPhoneLinkForAppUser } from "~~/server/utils/phone-links";
 
@@ -10,6 +14,14 @@ function rowToProfile(row: typeof schema.userProfiles.$inferSelect): UserProfile
     timezone: row.timezone,
     locale: profileLanguageSchema.parse(row.locale),
     bio: row.bio,
+    personalityMarkdown: row.personalityMarkdown,
+    actionPreferences: {
+      commit: actionPreferenceSchema.catch(DEFAULT_ACTION_PREFERENCES.commit).parse(row.commitPreference),
+      push: actionPreferenceSchema.catch(DEFAULT_ACTION_PREFERENCES.push).parse(row.pushPreference),
+      openPullRequest: actionPreferenceSchema
+        .catch(DEFAULT_ACTION_PREFERENCES.openPullRequest)
+        .parse(row.pullRequestPreference),
+    },
     updatedAt: row.updatedAt.getTime(),
   };
 }

@@ -9,10 +9,9 @@ import type {
   OnboardingStep,
 } from "#shared/types/onboarding";
 import {
-  parseNumberedChoices,
-  parseOnboardingConsent,
   resolveTimezoneInput,
 } from "#shared/onboarding-input";
+import type { PersonalityPatch } from "#shared/personality-schema";
 import { imessageOnboardingSessions } from "~~/server/db/schema/onboarding";
 import { sendPhoneSignInCode } from "~~/server/utils/auth-delivery";
 import { createImessageBrowserLoginLink } from "~~/server/utils/imessage-browser-login";
@@ -21,19 +20,14 @@ import {
   normalizePhoneNumber,
 } from "~~/server/utils/phone-links";
 import { isPhoneInvited, markWaitlistClaimed } from "~~/server/utils/waitlist";
+import {
+  interpretOnboardingMessage,
+  type OnboardingInterpretation,
+} from "~~/server/utils/onboarding-agent";
+import { updatePersonalityForUser } from "~~/server/utils/personality";
 
 type OnboardingRow = typeof imessageOnboardingSessions.$inferSelect;
 
-const INTEREST_OPTIONS = [
-  "work",
-  "personal organization",
-  "learning",
-  "health",
-  "creative projects",
-  "finance",
-] as const;
-
-const INTEGRATION_OPTIONS = ["github"] as const;
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_RESEND_INTERVAL_MS = 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -122,6 +116,33 @@ function promptFor(row: OnboardingRow): { message: string; nativeChoice?: Onboar
     case "complete":
       return { message: "Onboarding is complete. Send me anything to get started." };
   }
+}
+
+const NEXT_STEP: Partial<Record<OnboardingStep, OnboardingStep>> = {
+  consent: "name",
+  name: "timezone",
+  timezone: "preferences",
+  preferences: "interests",
+  interests: "integrations",
+};
+
+function promptForStep(row: OnboardingRow, step: OnboardingStep) {
+  return promptFor({ ...row, step } as OnboardingRow).message;
+}
+
+function personalityPatchFromInterpretation(
+  interpretation: OnboardingInterpretation,
+  remember: string[],
+): PersonalityPatch | null {
+  const actions = Object.fromEntries(
+    Object.entries(interpretation.actionPreferences)
+      .filter((entry): entry is [keyof PersonalityPatch["actions"], "ask" | "always"] => entry[1] !== null),
+  );
+  if (!remember.length && !Object.keys(actions).length) return null;
+  return {
+    ...(remember.length ? { remember } : {}),
+    ...(Object.keys(actions).length ? { actions } : {}),
+  };
 }
 
 async function getRow(phoneNumber: string) {
@@ -274,41 +295,34 @@ export async function handleOnboardingGateway(
         otpVerifiedAt: new Date(),
       });
       row = (await getRow(input.phoneNumber))!;
+    }
+    else {
+      if (!await isPhoneInvited(input.phoneNumber)) {
+        const siteUrl = (process.env.NUXT_PUBLIC_SITE_URL?.trim() || "https://use-memory.vercel.app")
+          .replace(/\/$/u, "");
+        return {
+          kind: "prompt",
+          message: `Use Memory is invite-only right now. Join the waitlist at ${siteUrl} and I will message this number when access is ready.`,
+          snapshot: null,
+        };
+      }
+
+      const otp = await issueOtp(input.phoneNumber);
+      await db.insert(imessageOnboardingSessions).values({
+        phoneNumber: input.phoneNumber,
+        threadId: input.threadId,
+        step: "verify_phone",
+        ...otp,
+      });
+      row = (await getRow(input.phoneNumber))!;
       const prompt = promptFor(row);
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: `This phone is already verified.\n\n${prompt.message}`,
-        nativeChoice: prompt.nativeChoice,
         snapshot: rowToSnapshot(row),
+        ...prompt,
       };
       return (await persistResponse(input, response)).response;
     }
-
-    if (!await isPhoneInvited(input.phoneNumber)) {
-      const siteUrl = (process.env.NUXT_PUBLIC_SITE_URL?.trim() || "https://use-memory.vercel.app")
-        .replace(/\/$/u, "");
-      return {
-        kind: "prompt",
-        message: `Use Memory is invite-only right now. Join the waitlist at ${siteUrl} and I will message this number when access is ready.`,
-        snapshot: null,
-      };
-    }
-
-    const otp = await issueOtp(input.phoneNumber);
-    await db.insert(imessageOnboardingSessions).values({
-      phoneNumber: input.phoneNumber,
-      threadId: input.threadId,
-      step: "verify_phone",
-      ...otp,
-    });
-    row = (await getRow(input.phoneNumber))!;
-    const prompt = promptFor(row);
-    const response: OnboardingGatewayResponse = {
-      kind: "prompt",
-      snapshot: rowToSnapshot(row),
-      ...prompt,
-    };
-    return (await persistResponse(input, response)).response;
   }
 
   if (
@@ -356,6 +370,39 @@ export async function handleOnboardingGateway(
         : "Please type your answer so I can continue onboarding.",
       snapshot: rowToSnapshot(row),
       nativeChoice: prompt.nativeChoice,
+    };
+    return (await persistResponse(input, response)).response;
+  }
+
+  const conversationalStep = row.step as OnboardingStep;
+  const interpretation = conversationalStep !== "verify_phone" && conversationalStep !== "complete"
+    ? await interpretOnboardingMessage({
+        step: conversationalStep,
+        text: input.text,
+        currentQuestion: promptFor(row).message,
+        nextQuestion: NEXT_STEP[conversationalStep]
+          ? promptForStep(row, NEXT_STEP[conversationalStep]!)
+          : undefined,
+        known: {
+          name: row.name,
+          timezone: row.timezone,
+          preferences: parseStringList(row.preferencesJson),
+          interests: parseStringList(row.interestsJson),
+        },
+      })
+    : null;
+
+  if (
+    conversationalStep !== "verify_phone"
+    && conversationalStep !== "complete"
+    && !interpretation
+  ) {
+    const prompt = promptFor(row);
+    const response: OnboardingGatewayResponse = {
+      kind: "prompt",
+      message: "I’m having trouble understanding messages right now. Please try that again in a moment.",
+      nativeChoice: prompt.nativeChoice,
+      snapshot: rowToSnapshot(row),
     };
     return (await persistResponse(input, response)).response;
   }
@@ -447,12 +494,12 @@ export async function handleOnboardingGateway(
 
     case "consent": {
       if (!row.otpVerifiedAt) throw new Error("Consent cannot proceed before phone verification");
-      const consent = parseOnboardingConsent(input.text);
+      const consent = interpretation!.advance ? interpretation!.consent : null;
       if (consent === null) {
         const prompt = promptFor(row);
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: `I did not understand that choice.\n\n${prompt.message}`,
+          message: interpretation!.reply,
           nativeChoice: prompt.nativeChoice,
           snapshot: rowToSnapshot(row),
         };
@@ -461,7 +508,7 @@ export async function handleOnboardingGateway(
       if (!consent) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: "No problem. I will not set up an account. Reply YES whenever you want to continue.",
+          message: interpretation!.reply,
           nativeChoice: consentChoice(input.phoneNumber),
           snapshot: rowToSnapshot(row),
         };
@@ -477,40 +524,43 @@ export async function handleOnboardingGateway(
       });
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: promptFor(row).message,
+        message: interpretation!.reply,
         snapshot: rowToSnapshot(row),
       };
       return (await persistResponse(input, response)).response;
     }
 
     case "name": {
-      if (input.text.length > 80) {
+      const name = interpretation!.advance ? interpretation!.name : null;
+      if (!name) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: "Please send a name that is 80 characters or fewer.",
+          message: interpretation!.reply,
           snapshot: rowToSnapshot(row),
         };
         return (await persistResponse(input, response)).response;
       }
       if (!row.appUserId) throw new Error("Onboarding user was not provisioned");
       await db.update(schema.user)
-        .set({ name: input.text })
+        .set({ name })
         .where(eq(schema.user.id, row.appUserId));
-      row = await updateRow(input.phoneNumber, { name: input.text, step: "timezone" });
+      row = await updateRow(input.phoneNumber, { name, step: "timezone" });
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: `Nice to meet you, ${input.text}.\n\n${promptFor(row).message}`,
+        message: interpretation!.reply,
         snapshot: rowToSnapshot(row),
       };
       return (await persistResponse(input, response)).response;
     }
 
     case "timezone": {
-      const timezone = resolveTimezoneInput(input.text);
+      const timezone = interpretation!.advance
+        ? resolveTimezoneInput(interpretation!.timezone ?? "")
+        : null;
       if (!timezone) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: `I could not recognize that timezone. ${promptFor(row).message}`,
+          message: interpretation!.reply,
           snapshot: rowToSnapshot(row),
         };
         return (await persistResponse(input, response)).response;
@@ -522,57 +572,74 @@ export async function handleOnboardingGateway(
       row = await updateRow(input.phoneNumber, { timezone, step: "preferences" });
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: `Got it — I’ll use ${timezone}.\n\n${promptFor(row).message}`,
+        message: interpretation!.reply,
         snapshot: rowToSnapshot(row),
       };
       return (await persistResponse(input, response)).response;
     }
 
     case "preferences": {
-      const preferences = /^skip$/iu.test(input.text) ? [] : [input.text];
+      if (!interpretation!.advance) {
+        const response: OnboardingGatewayResponse = {
+          kind: "prompt",
+          message: interpretation!.reply,
+          snapshot: rowToSnapshot(row),
+        };
+        return (await persistResponse(input, response)).response;
+      }
+      const preferences = interpretation!.preferences;
+      if (!row.appUserId) throw new Error("Onboarding user was not provisioned");
+      const personalityPatch = personalityPatchFromInterpretation(
+        interpretation!,
+        preferences,
+      );
+      if (personalityPatch) {
+        await updatePersonalityForUser(row.appUserId, personalityPatch);
+      }
       row = await updateRow(input.phoneNumber, {
         preferencesJson: JSON.stringify(preferences),
         step: "interests",
       });
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: promptFor(row).message,
+        message: interpretation!.reply,
         snapshot: rowToSnapshot(row),
       };
       return (await persistResponse(input, response)).response;
     }
 
     case "interests": {
-      const interests = parseNumberedChoices(input.text, INTEREST_OPTIONS, true);
+      const interests = interpretation!.advance ? interpretation!.interests : null;
       if (!interests?.length) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: `Choose at least one option or write an interest.\n\n${promptFor(row).message}`,
+          message: interpretation!.reply,
           snapshot: rowToSnapshot(row),
         };
         return (await persistResponse(input, response)).response;
       }
+      if (!row.appUserId) throw new Error("Onboarding user was not provisioned");
+      await updatePersonalityForUser(row.appUserId, {
+        remember: [`Be especially useful for: ${interests.join(", ")}.`],
+      });
       row = await updateRow(input.phoneNumber, {
         interestsJson: JSON.stringify(interests),
         step: "integrations",
       });
       const response: OnboardingGatewayResponse = {
         kind: "prompt",
-        message: promptFor(row).message,
+        message: interpretation!.reply,
         snapshot: rowToSnapshot(row),
       };
       return (await persistResponse(input, response)).response;
     }
 
     case "integrations": {
-      const normalized = input.text.trim().toLowerCase();
-      const integrations = normalized === "2" || normalized === "none"
-        ? []
-        : parseNumberedChoices(input.text, INTEGRATION_OPTIONS, false);
-      if (integrations === null) {
+      const integrations = interpretation!.advance ? interpretation!.integrations : null;
+      if (!integrations) {
         const response: OnboardingGatewayResponse = {
           kind: "prompt",
-          message: `Choose 1 for GitHub or 2 for none.\n\n${promptFor(row).message}`,
+          message: interpretation!.reply,
           snapshot: rowToSnapshot(row),
         };
         return (await persistResponse(input, response)).response;
@@ -582,7 +649,6 @@ export async function handleOnboardingGateway(
         step: "complete",
         completedAt: new Date(),
       });
-      const selected = integrations.length ? integrations.join(", ") : "none yet";
       const appUserId = row.appUserId;
       const authorizationLinks = appUserId
         ? await Promise.all(integrations.map(async () => {
@@ -593,7 +659,7 @@ export async function handleOnboardingGateway(
       const response: OnboardingGatewayResponse = {
         kind: "complete",
         message: [
-          `You're all set. Selected integrations: ${selected}.`,
+          interpretation!.reply,
           authorizationLinks.length
             ? `Open each secure, five-minute link to authorize your own account:\n${authorizationLinks.join("\n")}`
             : "You can connect GitHub later in Settings → Integrations.",
