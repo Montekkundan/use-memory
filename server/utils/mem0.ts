@@ -196,7 +196,6 @@ export async function retryPendingAutomaticMemoryTurns(userId: string, limit = 3
     .where(and(
       eq(schema.mem0TurnStages.userId, userId),
       isNotNull(schema.mem0TurnStages.userMessage),
-      isNotNull(schema.mem0TurnStages.assistantMessage),
       lt(schema.mem0TurnStages.attempts, MAX_DELIVERY_ATTEMPTS),
       or(
         eq(schema.mem0TurnStages.status, "pending"),
@@ -227,7 +226,7 @@ export async function retryPendingAutomaticMemoryTurns(userId: string, limit = 3
       ))
       .returning();
 
-    if (!claimed?.userMessage || !claimed.assistantMessage) {
+    if (!claimed?.userMessage) {
       continue;
     }
 
@@ -238,7 +237,7 @@ export async function retryPendingAutomaticMemoryTurns(userId: string, limit = 3
         sessionId: claimed.sessionId,
         turnId: claimed.turnId,
         userMessage: claimed.userMessage,
-        assistantMessage: claimed.assistantMessage,
+        assistantMessage: claimed.assistantMessage ?? undefined,
         createdAt: claimed.createdAt,
       });
       await db.update(schema.mem0TurnStages)

@@ -12,6 +12,7 @@ const turnBodySchema = z.object({
   turnId: z.string().trim().min(1).max(300),
   userMessage: z.string().trim().min(1).max(20_000).optional(),
   assistantMessage: z.string().trim().min(1).max(20_000).optional(),
+  deliveryRequested: z.boolean().optional().default(false),
 }).refine(body => body.userMessage || body.assistantMessage, {
   message: "At least one message is required",
 });
@@ -21,7 +22,7 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, turnBodySchema.parse);
   const staged = await stageAutomaticMemoryTurn(body);
 
-  if (body.assistantMessage && staged.staged) {
+  if ((body.assistantMessage || body.deliveryRequested) && staged.staged) {
     const delivery = await retryPendingAutomaticMemoryTurns(body.userId, 3);
     logEvent("info", "mem0.turn.delivery_processed", {
       userRef: opaqueReference(body.userId),

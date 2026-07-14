@@ -22,7 +22,7 @@ function turnKey(sessionId: string, turnId: string) {
 async function stageSafely(input: Parameters<typeof stageAutomaticMemoryRemote>[0]) {
   try {
     const result = await stageAutomaticMemoryRemote(input);
-    if (input.assistantMessage) {
+    if (input.assistantMessage || input.deliveryRequested) {
       logEvent("info", "mem0.turn.staged", {
         userRef: opaqueReference(input.userId),
         sessionRef: opaqueReference(input.sessionId),
@@ -97,8 +97,21 @@ export default defineHook({
         assistantMessage: pair.assistantMessage,
       });
     },
-    "turn.failed"(event, ctx) {
-      activeTurns.delete(turnKey(ctx.session.id, event.data.turnId));
+    async "turn.failed"(event, ctx) {
+      const key = turnKey(ctx.session.id, event.data.turnId);
+      const pair = activeTurns.get(key);
+      activeTurns.delete(key);
+
+      const userId = sessionUserId(ctx.session.auth.current);
+      if (!userId || !pair?.userMessage) return;
+
+      await stageSafely({
+        userId,
+        sessionId: ctx.session.id,
+        turnId: event.data.turnId,
+        userMessage: pair.userMessage,
+        deliveryRequested: true,
+      });
     },
   },
 });

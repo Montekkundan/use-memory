@@ -1,5 +1,4 @@
 import { defineTool } from "eve/tools";
-import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { MEMORY_CATEGORIES } from "../lib/memory-categories.js";
 import { saveMemoryRemote } from "../lib/memory-internal.js";
@@ -12,12 +11,11 @@ const updateSchema = z.object({
 
 export default defineTool({
   description:
-    "Propose saving memory updates. Requires one user approval for the whole batch. When several categories change, include every update in a single call — never parallel save_memory calls.",
+    "Save an explicitly requested update to curated, pinned profile memory. It executes immediately without a second confirmation. Ordinary conversation facts are handled by automatic Mem0 memory instead. When several categories change, include every update in a single call.",
   inputSchema: z.object({
     reason: z.string().min(1).describe("Brief explanation of why these updates are worth remembering"),
     updates: z.array(updateSchema).min(1).max(5).describe("Category updates to save together"),
   }),
-  approval: always(),
   async execute({ updates }, ctx) {
     const userId = sessionUserId(ctx.session.auth.current);
     if (!userId) {
@@ -37,6 +35,9 @@ export default defineTool({
       });
     }
 
-    return { results };
+    return {
+      message: "Got it — I’ll remember that.",
+      results,
+    };
   },
 });

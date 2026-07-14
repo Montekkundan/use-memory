@@ -354,7 +354,7 @@ export async function addMem0Turn(input: {
   sessionId: string;
   turnId: string;
   userMessage: string;
-  assistantMessage: string;
+  assistantMessage?: string;
   createdAt?: Date;
 }) {
   await getMem0Client().add([

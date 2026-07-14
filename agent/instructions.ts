@@ -1,6 +1,7 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import type { DynamicResolveContext } from "eve/instructions";
 import { BASE_INSTRUCTIONS } from "./lib/base-instructions.js";
+import { isIMessageChannelKind } from "./lib/channel-kind.js";
 import { buildUserContextPrompt, fetchUserContext } from "./lib/memory-internal.js";
 import {
   buildAutomaticRecallPrompt,
@@ -13,15 +14,16 @@ const IMESSAGE_INSTRUCTIONS = `
 
 # iMessage (Photon Cloud)
 
-- This conversation is over iMessage. There is no browser UI for tool approvals in this thread.
+- This conversation is over iMessage.
 - Answer the user's question directly. Use GitHub, coding sandbox, weather, and other tools when relevant.
-- Do **not** call \`save_memory\` in iMessage because this channel has no browser approval UI. When automatic memory is enabled, explicit facts in this conversation are staged for Mem0 after the turn; curated memory remains manageable in Settings.
+- Ordinary facts the user asks you to remember are saved by automatic memory when consent is enabled. Acknowledge them naturally without mentioning internal tools or asking for a second confirmation.
+- Use \`save_memory\` only when the user explicitly asks to pin or edit curated profile memory. It executes directly in this channel.
 - Use \`update_profile\` when the user explicitly asks to change their safe profile fields; this works directly in iMessage.
 - Use \`update_personality\` when the user explicitly asks you to remember, forget, or change a lasting collaboration preference; this also works directly in iMessage.
 - When automatic memory is enabled, explicit facts shared in this conversation are eligible for Mem0 after the turn. Never store credentials, verification codes, or secrets.`;
 
 function instructionsForChannel(kind: string | undefined, base: string) {
-  if (kind === "chat-sdk" || kind === "photon") {
+  if (isIMessageChannelKind(kind)) {
     return `${base}${IMESSAGE_INSTRUCTIONS}`;
   }
   return base;

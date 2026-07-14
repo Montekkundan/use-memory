@@ -81,15 +81,20 @@ export default defineEval({
       const teach = t.newSession();
       const taught = await teach.send({
         headers,
-        message: [
-          `My preferred imaginary flower for future examples is ${marker}.`,
-          "Do not call save_memory or any other tool; just acknowledge this sentence briefly.",
-        ].join(" "),
+        message: `Please remember that my preferred imaginary flower for future examples is ${marker}.`,
       });
       taught.expectOk();
       teach.succeeded();
       teach.noFailedActions();
       teach.notCalledTool("save_memory");
+      t.check(
+        taught.message,
+        satisfies(
+          message => typeof message === "string"
+            && !/approve tool call|save_memory/i.test(message),
+          "Memory acknowledgement uses natural language without exposing implementation details",
+        ),
+      );
 
       let indexed = false;
       for (let attempt = 1; attempt <= 24; attempt += 1) {

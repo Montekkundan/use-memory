@@ -3,7 +3,7 @@ import { buildBundledEveGithubToolMap } from "./github-eve-adapter.js";
 import { githubApprovalForChannel } from "../tools/github.js";
 
 describe("githubApprovalForChannel", () => {
-  it.each(["chat-sdk", "photon"])(
+  it.each(["chat-sdk", "photon", "channel:photon"])(
     "requires approval for every write by default in %s",
     (channelKind) => {
       expect(githubApprovalForChannel(channelKind)).toEqual({

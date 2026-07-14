@@ -11,6 +11,7 @@ import {
   type ActionPreferences,
 } from "../../shared/personality-schema.js";
 import { buildBundledEveGithubToolMap } from "../lib/github-eve-adapter.js";
+import { isIMessageChannelKind } from "../lib/channel-kind.js";
 import { fetchUserContext } from "../lib/memory-internal.js";
 import { sessionUserId } from "../lib/session-user.js";
 
@@ -18,7 +19,7 @@ export function githubApprovalForChannel(
   channelKind: string | undefined,
   preferences: ActionPreferences = DEFAULT_ACTION_PREFERENCES,
 ) {
-  if (channelKind !== "chat-sdk" && channelKind !== "photon") {
+  if (!isIMessageChannelKind(channelKind)) {
     return true;
   }
 

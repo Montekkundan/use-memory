@@ -80,6 +80,7 @@ export async function stageAutomaticMemoryRemote(input: {
   turnId: string;
   userMessage?: string;
   assistantMessage?: string;
+  deliveryRequested?: boolean;
 }) {
   const response = await fetch(`${appOrigin()}/api/internal/mem0/turn`, {
     method: "POST",

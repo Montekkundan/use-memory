@@ -72,6 +72,27 @@ describe("Mem0 Cloud namespace", () => {
     }));
   });
 
+  it("delivers the user's fact even when the assistant response failed", async () => {
+    sdk.add.mockResolvedValue([]);
+    const { addMem0Turn } = await import("./mem0-client");
+
+    await addMem0Turn({
+      id: "stage-failed-turn",
+      userId: "user-123",
+      sessionId: "session-failed",
+      turnId: "turn-failed",
+      userMessage: "Remember that x is 50.",
+    });
+
+    expect(sdk.add).toHaveBeenCalledWith([
+      { role: "user", content: "Remember that x is 50." },
+    ], expect.objectContaining({
+      userId: "user-123",
+      runId: "session-failed",
+      infer: true,
+    }));
+  });
+
   it("rejects cloud results outside the requested user and app-owned source", async () => {
     sdk.search.mockResolvedValue({
       results: [

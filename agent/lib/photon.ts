@@ -135,7 +135,9 @@ const redisUrl = process.env.REDIS_URL?.trim() || process.env.KV_URL?.trim();
 
 export const photonState = process.env.NODE_ENV === "production" && redisUrl
   ? createRedisState({
-      keyPrefix: "use-memory:chat-sdk",
+      // v2 discards sessions left with unmatched approval tool calls by the
+      // former save_memory flow while preserving onboarding and user memory.
+      keyPrefix: "use-memory:chat-sdk:v2",
       url: redisUrl,
     })
   : createMemoryState();

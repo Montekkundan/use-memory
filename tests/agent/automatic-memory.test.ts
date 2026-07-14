@@ -42,4 +42,27 @@ describe("automatic memory hook", () => {
       assistantMessage: "I will keep replies concise.",
     });
   });
+
+  it("requests user-only delivery when model generation fails", async () => {
+    const events = automaticMemoryHook.events as Record<string, (event: never, ctx: never) => Promise<void>>;
+    const ctx = {
+      session: {
+        id: "session-failed",
+        auth: { current: { principalId: "user-1", principalType: "user" } },
+      },
+    } as never;
+
+    await events["message.received"]!({
+      data: { turnId: "turn-failed", message: "Remember that x is 50." },
+    } as never, ctx);
+    await events["turn.failed"]!({ data: { turnId: "turn-failed" } } as never, ctx);
+
+    expect(mocks.stageAutomaticMemoryRemote).toHaveBeenLastCalledWith({
+      userId: "user-1",
+      sessionId: "session-failed",
+      turnId: "turn-failed",
+      userMessage: "Remember that x is 50.",
+      deliveryRequested: true,
+    });
+  });
 });
